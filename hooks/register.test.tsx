@@ -135,6 +135,20 @@ test('이미 끝난 작업의 중지(No task found)는 에러 대신 행을 끝�
   expect((await ui.findAll({ type: 'Text' })).map(t => t.text).join('\n')).toContain('idle')
 })
 
+test('bash 중지가 성공하면 알림 없이도 바로 중지됨으로 끝난다', async ($, on) => {
+  mock.clock(on)
+  on('tool.call', async (_$, e) =>
+    e.tool === 'TaskStop'
+      ? { result: { message: 'Successfully stopped task: k1', task_id: 'k1', task_type: 'local_bash' } }
+      : { result: { stdout: '', stderr: '', interrupted: false, backgroundTaskId: 'k1' } })
+  const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'Pane', requestId: 'subagents', props: PANE_PROPS })
+  await $.tool.call({ tool: 'Bash', command: 'sleep 60', run_in_background: true })
+  await ui.press({ key: 'stop-k1' })
+  await ui.press({ key: 'stop-k1' })
+  expect((await ui.findAll({ type: 'Text' })).map(t => t.text).join(' ')).toContain('idle')
+  expect(await ui.find({ key: 'stop-k1' })).toBeUndefined()
+})
+
 test('포그라운드 Bash는 행을 만들지 않는다', async ($, on) => {
   mock.clock(on)
   on('tool.call', async () => ({ result: { stdout: 'ok', stderr: '', interrupted: false } }))

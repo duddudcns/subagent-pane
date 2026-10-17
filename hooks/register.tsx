@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { AgentRow } from '../types'
 import { resolveColor } from './colors'
 import { startTrace, trace } from './trace'
-import { padTo, reconcileShells, addAgent, addShell, backgroundTaskIdOf, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
+import { stopOutcome, padTo, reconcileShells, addAgent, addShell, backgroundTaskIdOf, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
 
 const PANE = 'subagents'
 const TITLE = 'Subagents'
@@ -188,14 +188,17 @@ export const register: Register = (on, options) => {
         consent: `The user pressed "stop" twice on subagent ${row.type} (${row.description}) in the subagent pane.`,
       })
       await trace($, 'stop', { id: row.id, ran: JSON.parse(JSON.stringify(ran)) })
-      // Already over (its end notification was missed): settle the row instead of reporting an error.
-      if ('isError' in ran && ran.isError && /No task found/.test(ran.text ?? '')) {
-        const at2 = await $.clock.now()
-        await update($, agents, rows => finishTask(rows, row.id, 'completed', at2))
+      if ('deny' in ran && ran.deny) {
+        $.ui.toast(`Stop failed: ${ran.deny}`)
         return
       }
-      if ('deny' in ran && ran.deny) $.ui.toast(`Stop failed: ${ran.deny}`)
-      else if ('isError' in ran && ran.isError) $.ui.toast(`Stop failed: ${ran.text}`)
+      const outcome = stopOutcome('isError' in ran && ran.isError === true, ('text' in ran ? ran.text : '') ?? '')
+      if ('error' in outcome) {
+        $.ui.toast(`Stop failed: ${outcome.error}`)
+        return
+      }
+      const at2 = await $.clock.now()
+      await update($, agents, rows => finishTask(rows, row.id, outcome.settle, at2))
     }
 
     // Exactly two lines per agent: every text is cut to the pane width here, never wrapped.

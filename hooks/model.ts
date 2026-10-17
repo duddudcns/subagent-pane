@@ -87,6 +87,16 @@ export const reconcileShells = (list: AgentRow[], liveIds: Set<string>, now: num
       : row,
   )
 
+// What a TaskStop answer means for the row. A stop that worked, or one refused because the
+// task already ended, settles the row at once: a shell's end notification may never come.
+export const stopOutcome = (isError: boolean, text: string): { settle: string } | { error: string } => {
+  if (!isError) return { settle: 'killed' }
+  const ended = text.match(/is not running \(status: (\w+)\)/)?.[1]
+  if (ended) return { settle: ENDED.has(ended) ? ended : 'completed' }
+  if (/No task found/.test(text)) return { settle: 'completed' }
+  return { error: text.replace(/<\/?tool_use_error>/g, '').trim() }
+}
+
 export const parseNotification = (text: string): { id: string; status?: string } | undefined => {
   const id = text.match(/<task-id>([^<]+)<\/task-id>/)?.[1]?.trim()
   if (!id) return undefined

@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { reconcileShells, addAgent, addShell, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, MIN_GAP, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
+import { stopOutcome, reconcileShells, addAgent, addShell, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, MIN_GAP, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
 
 const base = () => addAgent([], { id: 'a1', type: 'Explore', description: 'find x', startedAt: 1_000, model: 'haiku' })
 
@@ -163,4 +163,12 @@ test('엔진의 실행 중 작업 목록에 없는 셸 행은 끝난 것으로 �
   const out = reconcileShells(list, new Set(['b2']), 50)
   expect(out.map(r => [r.id, r.status])).toEqual([['b1', 'completed'], ['b2', 'running'], ['a1', 'running']])
   expect(out[0]?.endedAt).toBe(50)
+})
+
+test('중지 결과: 성공은 killed, 이미 끝난 작업은 그 상태로 정리, 그 밖의 에러만 실패', async () => {
+  expect(stopOutcome(false, '{"message":"Successfully stopped task: b1"}')).toEqual({ settle: 'killed' })
+  expect(stopOutcome(true, '<tool_use_error>Task b4123yzk5 is not running (status: killed)</tool_use_error>')).toEqual({ settle: 'killed' })
+  expect(stopOutcome(true, '<tool_use_error>Task x is not running (status: completed)</tool_use_error>')).toEqual({ settle: 'completed' })
+  expect(stopOutcome(true, '<tool_use_error>No task found with ID: b1</tool_use_error>')).toEqual({ settle: 'completed' })
+  expect(stopOutcome(true, '<tool_use_error>permission denied</tool_use_error>')).toEqual({ error: 'permission denied' })
 })
