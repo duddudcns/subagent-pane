@@ -46,7 +46,13 @@ export const register: Register = on => {
     return next(e)
   })
 
+  // The command toggles: the engine's pane record survives reloads, the module's does not.
   on('command.run', { command: 'subagent-pane' }, async $ => {
+    const isUp = (await $.ui.panes()).some(pane => pane.id === PANE)
+    if (isUp) {
+      await $.ui.close({ id: PANE })
+      return { text: '서브에이전트 패널을 닫았습니다.' }
+    }
     await $.ui.open({ id: PANE, title: TITLE })
     opened = true
     return { text: '서브에이전트 패널을 열었습니다.' }
@@ -115,6 +121,8 @@ export const register: Register = on => {
             clear
           </Button>
         )}
+        <Text> </Text>
+        <Button plain dimColor role="dismiss" onPress={() => void $.ui.close({ id: PANE })}>close</Button>
       </Box>
     )
 

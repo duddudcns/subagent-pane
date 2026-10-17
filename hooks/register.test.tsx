@@ -50,6 +50,26 @@ for (const surface of ['terminal', 'desktop'] as const) {
   })
 }
 
+test('/subagent-pane 은 열려 있으면 닫고, 닫혀 있으면 연다', async ($, on) => {
+  mock.clock(on)
+  let isUp = false
+  on('ui.open', async () => {
+    isUp = true
+    return { value: { isPlaced: true } }
+  })
+  on('ui.close', async () => {
+    isUp = false
+    return { value: undefined }
+  })
+  on('ui.panes', async () => ({ value: isUp ? [{ id: 'subagents', title: 'Subagents', isShown: true, isFocused: false, isPlaced: true }] : [] }))
+  const first = await $.command.run({ command: 'subagent-pane', args: '' } as Parameters<typeof $.command.run>[0])
+  expect(isUp).toBe(true)
+  expect(first.text).toContain('열었')
+  const second = await $.command.run({ command: 'subagent-pane', args: '' } as Parameters<typeof $.command.run>[0])
+  expect(isUp).toBe(false)
+  expect(second.text).toContain('닫았')
+})
+
 test('메인 루프의 도구 호출은 행을 만들지 않는다', async ($, on) => {
   mock.clock(on)
   on('tool.call', async () => ({ result: 'ok' }))
