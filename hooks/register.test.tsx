@@ -157,6 +157,26 @@ test('포그라운드 Bash는 행을 만들지 않는다', async ($, on) => {
   expect(await ui.find({ type: 'Text', text: 'No subagents yet.' })).toBeDefined()
 })
 
+test('Finished 묶음은 패널 맨 아래에 붙고, 남는 높이는 빈 공간이 채운다', async ($, on) => {
+  mock.clock(on)
+  on('ui.open', async () => ({ value: { isPlaced: true } }))
+  let n = 0
+  on('agent.spawn', async () => ({ model: 'claude-haiku-5-5', agentId: `p${++n}` }))
+  on('turn.complete', async (_$, e) => ({ text: e.answer }))
+  const rows = 20
+  const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'Pane', requestId: 'subagents', props: { ...PANE_PROPS, scroll: { offset: 0, bodyRows: rows } } })
+  const spawn = (d: string) => $.agent.spawn({
+    tool_use_id: d, prompt: 'x', description: d, subagentType: 'Explore',
+    provider: { plugin: 'engine', tier: 'core' }, parentModel: 'claude-opus-5-5', background: true, fork: false,
+  })
+  await spawn('live one')
+  await spawn('done one')
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't', agentId: 'p2', reason: 'answer' })
+  // header 1 + live 2 + finished bar block 2 (blank + bar) = 5 lines; the spacer takes the other 15.
+  const spacer = (await ui.findAll({ type: 'Box' })).find(b => b.key === 'spacer')
+  expect(spacer?.props.height).toBe(rows - 5)
+})
+
 test('좁은 패널에서도 첫 줄이 폭을 넘지 않는다 (한글 설명 포함)', async ($, on) => {
   mock.clock(on)
   on('ui.open', async () => ({ value: { isPlaced: true } }))

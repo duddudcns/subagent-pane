@@ -268,11 +268,17 @@ export const register: Register = (on, options) => {
       </Box>
     )
 
+    // Finished sits at the pane's bottom: an empty block takes whatever height is left above it.
+    const bodyRows = e.props?.scroll?.bodyRows ?? 0
+    const used = 1 + (rows.length === 0 ? 1 : 0) + live.length * 2 + (finished.length > 0 ? 2 + (isExpanded ? finished.length * 2 : 0) : 0)
+    const spacer = finished.length > 0 ? Math.max(0, bodyRows - used) : 0
+
     return (
       <Box flexDirection="column">
         {header}
         {rows.length === 0 && <Text dimColor>No subagents yet.</Text>}
         {live.map(agentRow)}
+        {spacer > 0 && <Box key="spacer" height={spacer} />}
         {finishedBar}
         {isExpanded && finished.map(agentRow)}
       </Box>
