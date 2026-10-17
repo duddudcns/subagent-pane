@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { Register } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
 
 import type { AgentRow } from '../types'
 import { startTrace, trace } from './trace'
@@ -23,15 +23,29 @@ const ICON: Record<string, [string, string | undefined]> = {
   killed: ['■', undefined],
 }
 
+// Module variables reset on every reload; the rows live in $.state and survive.
+let opened = false
+
+// The commands toggle: the engine's pane record survives reloads, the module's does not.
+async function togglePane($: EngineInterface) {
+  const isUp = (await $.ui.panes()).some(pane => pane.id === PANE)
+  if (isUp) {
+    await $.ui.close({ id: PANE })
+    return { text: '서브에이전트 패널을 닫았습니다.' }
+  }
+  await $.ui.open({ id: PANE, title: TITLE })
+  opened = true
+  return { text: '서브에이전트 패널을 열었습니다.' }
+}
+
 export const register: Register = on => {
-  // Module variables reset on every reload; the rows live in $.state and survive.
-  let opened = false
   // Stop takes two presses: the first arms it for STOP_ARM_MS.
   const armed = new Map<string, number>()
 
   on('session.start', async ($, e, next) => {
     await startTrace($)
-    await $.command.register({ name: 'subagent-pane', description: '서브에이전트 실시간 패널 열기' })
+    await $.command.register({ name: 'subagent-pane', description: '서브에이전트 실시간 패널 열기/닫기' })
+    await $.command.register({ name: 'sap', description: '서브에이전트 패널 열기/닫기 (/subagent-pane 축약)' })
     $.clock.every(TICK_MS, () => {
       void (async () => {
         const list = await read($, agents)
@@ -46,17 +60,8 @@ export const register: Register = on => {
     return next(e)
   })
 
-  // The command toggles: the engine's pane record survives reloads, the module's does not.
-  on('command.run', { command: 'subagent-pane' }, async $ => {
-    const isUp = (await $.ui.panes()).some(pane => pane.id === PANE)
-    if (isUp) {
-      await $.ui.close({ id: PANE })
-      return { text: '서브에이전트 패널을 닫았습니다.' }
-    }
-    await $.ui.open({ id: PANE, title: TITLE })
-    opened = true
-    return { text: '서브에이전트 패널을 열었습니다.' }
-  })
+  on('command.run', { command: 'subagent-pane' }, togglePane)
+  on('command.run', { command: 'sap' }, togglePane)
 
   on('agent.spawn', async ($, e, next) => {
     const result = await next(e)

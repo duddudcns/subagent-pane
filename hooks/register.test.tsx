@@ -68,6 +68,11 @@ test('/subagent-pane 은 열려 있으면 닫고, 닫혀 있으면 연다', asyn
   const second = await $.command.run({ command: 'subagent-pane', args: '' } as Parameters<typeof $.command.run>[0])
   expect(isUp).toBe(false)
   expect(second.text).toContain('닫았')
+  // The short alias toggles the same pane.
+  await $.command.run({ command: 'sap', args: '' } as Parameters<typeof $.command.run>[0])
+  expect(isUp).toBe(true)
+  await $.command.run({ command: 'sap', args: '' } as Parameters<typeof $.command.run>[0])
+  expect(isUp).toBe(false)
 })
 
 test('메인 루프의 도구 호출은 행을 만들지 않는다', async ($, on) => {
