@@ -1,0 +1,4 @@
+# engine-written type copies and the development trace
+.claude-plugin/types/
+.debug
+.debug-dump.json

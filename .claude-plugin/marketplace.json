@@ -1,0 +1,7 @@
+{
+  "name": "subagent-pane",
+  "owner": { "name": "duddudcns" },
+  "plugins": [
+    { "name": "subagent-pane", "source": "./", "description": "사이드 패널에 서브에이전트를 실시간 표시 (상태·현재 도구·토큰·경과 시간, 대화 보기, 중지)" }
+  ]
+}
