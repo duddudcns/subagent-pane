@@ -1,12 +1,18 @@
 {
   "name": "subagent-pane",
-  "version": "0.2.2",
-  "description": "사이드 패널에 서브에이전트 상태·현재 도구·경과 시간·토큰을 실시간 표시하고 대화 보기·중지",
+  "version": "0.3.0",
+  "description": "사이드 패널에 서브에이전트 상태·경과 시간·모델·effort을 실시간 표시하고 대화 보기·중지",
   "author": {
     "name": "duddudcns"
   },
   "types": "./types/index.d.ts",
   "userConfig": {
+    "showTool": {
+      "type": "boolean",
+      "title": "현재 도구 표시",
+      "description": "둘째 줄에 서브에이전트가 지금 쓰는 도구(▸ Read)를 표시",
+      "default": false
+    },
     "showTokens": {
       "type": "boolean",
       "title": "토큰 표시",

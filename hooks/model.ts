@@ -106,6 +106,17 @@ export const parseNotification = (text: string): { id: string; status?: string }
 export const setColor = (list: AgentRow[], id: string, color: string): AgentRow[] =>
   patch(list, id, row => ({ ...row, color }))
 
+export const setEffort = (list: AgentRow[], id: string, effort: string): AgentRow[] =>
+  patch(list, id, row => ({ ...row, effort }))
+
+// A shell row that runs Codex learns its model, effort and task once they are read back.
+export const setShellInfo = (list: AgentRow[], id: string, info: { model?: string; effort?: string; note?: string }): AgentRow[] =>
+  patch(list, id, row => ({ ...row, ...Object.fromEntries(Object.entries(info).filter(([, v]) => v !== undefined && v !== '')) }))
+
+// "haiku/medium": the model with its effort when the definition names one.
+export const modelLabel = (model: string | undefined, effort: string | undefined): string =>
+  [model, effort].filter(Boolean).join('/')
+
 export const startTool = (list: AgentRow[], id: string, tool: string): AgentRow[] =>
   patch(list, id, row => ({ ...row, tool, toolCount: row.toolCount + 1 }))
 

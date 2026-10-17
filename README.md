@@ -2,7 +2,7 @@
 
 Claude Code mod. 사이드 패널에 서브에이전트를 실시간으로 보여 준다.
 
-- 에이전트마다 두 줄: 종류, 설명, 경과 시간(색이 상태: 실행 중 노랑, 완료 초록, 실패 빨강, 중지 회색) / 지금 쓰는 도구, 모델(토큰·도구 횟수는 옵션)
+- 에이전트마다 두 줄: 종류, 설명, 경과 시간(색이 상태: 실행 중 노랑, 완료 초록, 실패 빨강, 중지 회색) / 모델/effort(`haiku/medium`; 현재 도구·토큰·도구 횟수는 옵션). Codex 를 부르는 백그라운드 셸은 `gpt-6-luna/low · 프롬프트 첫 줄`
 - 실행 중 목록은 트리: 서브에이전트가 띄운 셸·에이전트는 부모 바로 아래에 `└` 로 이어 붙는다(Finished 는 들여쓰기 없음)
 - 백그라운드 Bash/PowerShell(`run_in_background`)도 `bash`/`powershell` 행으로 보인다. 둘째 줄은 `$ 명령`. 끝은 엔진의 작업 알림(`task-notification`)으로 잡으므로, 알림이 늦게 오면 경과 시간도 그만큼 길게 찍힌다
 - 종류 이름은 에이전트 정의 파일의 `color:` 색으로 칠한다(API가 색을 주지 않아 `~/.claude/plugins/installed_plugins.json` → `agents/<이름>.md` 를 직접 읽음, 내장 에이전트는 색 없음)
@@ -18,6 +18,7 @@ Claude Code mod. 사이드 패널에 서브에이전트를 실시간으로 보�
 
 `/config` 의 플러그인 설정(또는 settings.json `pluginConfigs["subagent-pane"].options`):
 
+- `showTool` (기본 꺼짐): 둘째 줄에 지금 쓰는 도구(`▸ Read`)
 - `showTokens` (기본 꺼짐): 둘째 줄에 토큰(입력↑ 출력↓)
 - `showToolCount` (기본 꺼짐): 둘째 줄에 도구 호출 횟수(`N tools`)
 

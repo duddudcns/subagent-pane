@@ -2,9 +2,10 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { AgentRow } from '../types'
-import { resolveColor } from './colors'
+import { resolveDefinition } from './colors'
+import { codexCall, drivePath, firstLine, scriptPathOf } from './codex'
 import { startTrace, trace } from './trace'
-import { treePrefix, treeOrder, stopOutcome, padTo, reconcileShells, addAgent, addShell, backgroundTaskIdOf, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
+import { modelLabel, setEffort, setShellInfo, treePrefix, treeOrder, stopOutcome, padTo, reconcileShells, addAgent, addShell, backgroundTaskIdOf, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
 
 const PANE = 'subagents'
 const TITLE = 'Subagents'
@@ -35,9 +36,10 @@ async function togglePane($: EngineInterface) {
 }
 
 export const register: Register = (on, options) => {
-  // Both off by default: the detail line names the current tool and the model.
+  // All off by default: the detail line names the model and its effort.
   const showTokens = options.showTokens === true
   const showToolCount = options.showToolCount === true
+  const showTool = options.showTool === true
   // Stop takes two presses: the first arms it for STOP_ARM_MS, the second calls TaskStop.
   const armed = new Map<string, number>()
 
@@ -79,8 +81,11 @@ export const register: Register = (on, options) => {
     await update($, tick, () => startedAt)
     // The colour lookup reads files: never hold the spawn for it.
     const id = result.agentId
-    void resolveColor($, e.subagentType)
-      .then(color => (color ? update($, agents, rows => setColor(rows, id, color)) : undefined))
+    void resolveDefinition($, e.subagentType)
+      .then(async def => {
+        if (def.color) await update($, agents, rows => setColor(rows, id, def.color!))
+        if (def.effort) await update($, agents, rows => setEffort(rows, id, def.effort!))
+      })
       .catch(() => undefined)
     await trace($, 'spawn', { id: result.agentId, type: e.subagentType, background: e.background, parent: e.parentAgentId })
     if (!opened) {
@@ -108,6 +113,9 @@ export const register: Register = (on, options) => {
             addShell(rows, { id: taskId, shell, command: e.command, description: e.description, startedAt, parentId: id }),
           )
           await trace($, 'shell', { id: taskId, shell, parent: id })
+          void describeCodex($, e.command)
+            .then(info => (info ? update($, agents, rows => setShellInfo(rows, taskId, info)) : undefined))
+            .catch(() => undefined)
         }
       }
       return ran
@@ -217,8 +225,10 @@ export const register: Register = (on, options) => {
       const tokens = showTokens && row.tokensIn + row.tokensOut > 0 ? `${formatTokens(row.tokensIn)}↑ ${formatTokens(row.tokensOut)}↓` : ''
       const toolCount = showToolCount ? `${row.toolCount} tools` : ''
       const detail = row.kind === 'shell'
-        ? `$ ${(row.command ?? '').replace(/\s+/g, ' ')}`
-        : [row.tool ? `▸ ${row.tool}` : '', shortModel(row.model), toolCount, tokens].filter(Boolean).join(' · ')
+        ? row.model
+          ? [modelLabel(row.model, row.effort), row.note].filter(Boolean).join(' · ')
+          : `$ ${(row.command ?? '').replace(/\s+/g, ' ')}`
+        : [showTool && row.tool ? `▸ ${row.tool}` : '', modelLabel(shortModel(row.model), row.effort), toolCount, tokens].filter(Boolean).join(' · ')
       return (
         <Box key={row.id} flexDirection="column">
           <Box flexDirection="row">
@@ -297,4 +307,15 @@ const shortModel = (model?: string): string => {
   if (!model) return ''
   const m = model.match(/(opus|sonnet|haiku|fable)/i)
   return m?.[1]?.toLowerCase() ?? model
+}
+
+// Codex runs through a wrapper script: its model, effort and task are read back from the command, the script's
+// defaults and the prompt file, so the shell row can say more than the opaque command line.
+async function describeCodex($: EngineInterface, command: string): Promise<{ model?: string; effort?: string; note?: string } | undefined> {
+  const script = scriptPathOf(command)
+  const scriptText = script === undefined ? undefined : await $.fs.read(script).catch(() => undefined)
+  const call = codexCall(command, scriptText)
+  if (call === undefined) return undefined
+  const prompt = call.promptFile === undefined ? undefined : await $.fs.read(drivePath(call.promptFile)).catch(() => undefined)
+  return { model: call.model, effort: call.effort, note: prompt === undefined ? undefined : firstLine(prompt) }
 }

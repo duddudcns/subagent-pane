@@ -15,7 +15,7 @@ const PANE_PROPS = {
 const USAGE = { input_tokens: 100, output_tokens: 2_000, cache_read_input_tokens: 1_000, cache_creation_input_tokens: 0, model: 'claude-haiku-5-5' }
 
 for (const surface of ['terminal', 'desktop'] as const) {
-  test(`${surface}: 스폰 → 도구 실행 중 → 종료가 패널에 그대로 그려진다`, async ($, on) => {
+  test(`${surface}: 스폰 → 도구 실행 중 → 종료가 패널에 그대로 그려진다`, { options: { showTool: true } }, async ($, on) => {
     mock.clock(on)
     on('ui.open', async () => ({ value: { isPlaced: true } }))
     on('agent.spawn', async () => ({ model: 'claude-haiku-5-5', agentId: 'ag1' }))

@@ -24,6 +24,11 @@ export const parseColor = (markdown: string): string | undefined => {
   return line?.[1]
 }
 
+export const parseEffort = (markdown: string): string | undefined => {
+  const front = markdown.match(/^---\r?\n([\s\S]*?)\r?\n---/)
+  return front?.[1]?.match(/^effort:\s*(\S+)\s*$/m)?.[1]
+}
+
 type Installed = { plugins?: Record<string, { installPath?: string }[]> }
 
 export const agentFileCandidates = (type: string, configDir: string, cwd: string, installedJson: string): string[] => {
@@ -42,21 +47,24 @@ export const agentFileCandidates = (type: string, configDir: string, cwd: string
   return path ? [`${path}/agents/${name}.md`] : []
 }
 
-// One lookup per agent type per load; built-in types simply find no file.
-const cache = new Map<string, string | undefined>()
+export type Definition = { color?: string; effort?: string }
 
-export async function resolveColor($: EngineInterface, type: string): Promise<string | undefined> {
-  if (cache.has(type)) return cache.get(type)
+// One lookup per agent type per load; built-in types simply find no file.
+const cache = new Map<string, Definition>()
+
+export async function resolveDefinition($: EngineInterface, type: string): Promise<Definition> {
+  const hit = cache.get(type)
+  if (hit !== undefined) return hit
   const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME')) ?? ''
   const configDir = ((await $.env.get('CLAUDE_CONFIG_DIR')) ?? `${home}/.claude`).replace(/\\/g, '/')
   const installed = await $.fs.read(`${configDir}/plugins/installed_plugins.json`).catch(() => '{}')
-  let color: string | undefined
+  let found: Definition = {}
   for (const path of agentFileCandidates(type, configDir, '.', installed)) {
     const text = await $.fs.read(path).catch(() => undefined)
     if (text === undefined) continue
-    color = toDisplayColor(parseColor(text))
+    found = { color: toDisplayColor(parseColor(text)), effort: parseEffort(text) }
     break
   }
-  cache.set(type, color)
-  return color
+  cache.set(type, found)
+  return found
 }
