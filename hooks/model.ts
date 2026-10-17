@@ -142,6 +142,19 @@ export const syncStatus = (list: AgentRow[], engine: { id: string; status: strin
 // `subagents:runner` shows as `runner`: the plugin prefix only costs width.
 export const shortType = (type: string): string => type.slice(type.lastIndexOf(':') + 1)
 
+// Live rows as a tree: each row directly followed by the rows it spawned, in start order.
+// A row whose parent is not in the list (main's, or a parent already gone) starts at depth 0.
+export const treeOrder = (list: AgentRow[]): { row: AgentRow; depth: number }[] => {
+  const ids = new Set(list.map(row => row.id))
+  const out: { row: AgentRow; depth: number }[] = []
+  const visit = (row: AgentRow, depth: number) => {
+    out.push({ row, depth })
+    for (const child of list.filter(c => c.parentId === row.id)) visit(child, depth + 1)
+  }
+  for (const row of list.filter(r => r.parentId === undefined || !ids.has(r.parentId))) visit(row, 0)
+  return out
+}
+
 export const splitSections =(list: AgentRow[]): { live: AgentRow[]; finished: AgentRow[] } => ({
   live: list.filter(row => isLive(row.status)),
   finished: list.filter(row => !isLive(row.status)).sort((a, b) => (b.endedAt ?? 0) - (a.endedAt ?? 0)),

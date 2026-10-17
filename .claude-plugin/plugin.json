@@ -1,6 +1,6 @@
 {
   "name": "subagent-pane",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "사이드 패널에 서브에이전트 상태·현재 도구·경과 시간·토큰을 실시간 표시하고 대화 보기·중지",
   "author": {
     "name": "duddudcns"

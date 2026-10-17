@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { stopOutcome, reconcileShells, addAgent, addShell, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, MIN_GAP, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
+import { treeOrder, stopOutcome, reconcileShells, addAgent, addShell, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, MIN_GAP, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
 
 const base = () => addAgent([], { id: 'a1', type: 'Explore', description: 'find x', startedAt: 1_000, model: 'haiku' })
 
@@ -171,4 +171,12 @@ test('중지 결과: 성공은 killed, 이미 끝난 작업은 그 상태로 정
   expect(stopOutcome(true, '<tool_use_error>Task x is not running (status: completed)</tool_use_error>')).toEqual({ settle: 'completed' })
   expect(stopOutcome(true, '<tool_use_error>No task found with ID: b1</tool_use_error>')).toEqual({ settle: 'completed' })
   expect(stopOutcome(true, '<tool_use_error>permission denied</tool_use_error>')).toEqual({ error: 'permission denied' })
+})
+
+test('실행 중 목록은 부모 바로 아래에 자식을 모은다 (깊이 포함), 부모가 없으면 맨 위 단계', async () => {
+  let list = addAgent([], { id: 'r', type: 'runner', description: 'parent', startedAt: 1 })
+  list = addShell(list, { id: 'b1', shell: 'bash', command: 'main shell', startedAt: 2 })
+  list = addShell(list, { id: 'b2', shell: 'bash', command: 'child shell', startedAt: 3, parentId: 'r' })
+  list = addShell(list, { id: 'b3', shell: 'bash', command: 'orphan', startedAt: 4, parentId: 'gone' })
+  expect(treeOrder(list).map(n => [n.row.id, n.depth])).toEqual([['r', 0], ['b2', 1], ['b1', 0], ['b3', 0]])
 })

@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { AgentRow } from '../types'
 import { resolveColor } from './colors'
 import { startTrace, trace } from './trace'
-import { stopOutcome, padTo, reconcileShells, addAgent, addShell, backgroundTaskIdOf, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
+import { treeOrder, stopOutcome, padTo, reconcileShells, addAgent, addShell, backgroundTaskIdOf, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
 
 const PANE = 'subagents'
 const TITLE = 'Subagents'
@@ -205,9 +205,9 @@ export const register: Register = (on, options) => {
     }
 
     // Exactly two lines per agent: every text is cut to the pane width here, never wrapped.
-    const agentRow = (row: AgentRow) => {
+    const agentRow = (row: AgentRow, depth = 0) => {
       const elapsed = formatElapsed((row.endedAt ?? now) - row.startedAt)
-      const indent = row.parentId ? '  ' : ''
+      const indent = '  '.repeat(depth)
       const expiry = armed.get(row.id)
       const isArmed = expiry !== undefined && expiry >= now
       const canStop = isLive(row.status)
@@ -280,12 +280,12 @@ export const register: Register = (on, options) => {
       <Box flexDirection="column">
         {header}
         {rows.length === 0 && <Text dimColor>No subagents yet.</Text>}
-        {live.map(agentRow)}
+        {treeOrder(live).map(node => agentRow(node.row, node.depth))}
         {spacer > 0 && <Box key="spacer" height={spacer} />}
         {finished.length > 0 && (
           <Box key="finished-area" flexDirection="column" minHeight={finishedHeight || undefined}>
             {finishedBar}
-            {isExpanded && finished.map(agentRow)}
+            {isExpanded && finished.map(row => agentRow(row))}
           </Box>
         )}
       </Box>
