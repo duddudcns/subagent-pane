@@ -74,6 +74,52 @@ export const syncStatus = (list: AgentRow[], engine: { id: string; status: strin
   return next
 }
 
+export const splitSections = (list: AgentRow[]): { live: AgentRow[]; finished: AgentRow[] } => ({
+  live: list.filter(row => isLive(row.status)),
+  finished: list.filter(row => !isLive(row.status)).sort((a, b) => (b.endedAt ?? 0) - (a.endedAt ?? 0)),
+})
+
+// Terminal cells: Hangul, CJK, fullwidth forms and emoji take two.
+const WIDE: [number, number][] = [
+  [0x1100, 0x115f], [0x2e80, 0xa4cf], [0xac00, 0xd7a3], [0xf900, 0xfaff],
+  [0xfe30, 0xfe4f], [0xff00, 0xff60], [0xffe0, 0xffe6], [0x1f300, 0x1faff], [0x20000, 0x3fffd],
+]
+
+const charWidth = (ch: string): number => {
+  const code = ch.codePointAt(0) ?? 0
+  return WIDE.some(([lo, hi]) => code >= lo && code <= hi) ? 2 : 1
+}
+
+export const displayWidth = (text: string): number => [...text].reduce((sum, ch) => sum + charWidth(ch), 0)
+
+export const truncateTo = (text: string, width: number): string => {
+  if (displayWidth(text) <= width) return text
+  if (width <= 0) return ''
+  let out = ''
+  let used = 0
+  for (const ch of text) {
+    const w = charWidth(ch)
+    if (used + w > width - 1) break
+    out += ch
+    used += w
+  }
+  return `${out}…`
+}
+
+type Head = { indent: string; type: string; desc: string; elapsed: string; stop?: string }
+
+// The first row line is: indent, icon + space, type, [space + desc], space + elapsed, [space + stop].
+// It must fit `cols` so an agent stays two lines: the description gives way first, then the type.
+export const fitHead = (head: Head, cols: number): { type: string; desc: string } => {
+  const fixed = displayWidth(head.indent) + 2 + displayWidth(head.type) + 1 + displayWidth(head.elapsed) +
+    (head.stop ? 1 + displayWidth(head.stop) : 0)
+  if (fixed > cols) {
+    return { type: truncateTo(head.type, displayWidth(head.type) - (fixed - cols)), desc: '' }
+  }
+  const room = cols - fixed - 1
+  return { type: head.type, desc: room >= 2 ? truncateTo(head.desc, room) : '' }
+}
+
 const pad2 = (n: number) => String(n).padStart(2, '0')
 
 export const formatElapsed = (ms: number): string => {

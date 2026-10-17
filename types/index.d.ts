@@ -15,6 +15,6 @@ export type AgentRow = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'subagent-pane': { agents: AgentRow[]; tick: number }
+    'subagent-pane': { agents: AgentRow[]; tick: number; showFinished: boolean }
   }
 }

@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { AgentRow } from '../types'
 import { startTrace, trace } from './trace'
-import { addAgent, endTool, finishTurn, formatElapsed, formatTokens, isLive, startTool, syncStatus } from './model'
+import { addAgent, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, splitSections, startTool, syncStatus, truncateTo } from './model'
 
 const PANE = 'subagents'
 const TITLE = 'Subagents'
@@ -12,6 +12,7 @@ const STOP_ARM_MS = 5000
 
 const agents = atom({ plugin: 'subagent-pane', key: 'agents' } as const, [])
 const tick = atom({ plugin: 'subagent-pane', key: 'tick' } as const, 0)
+const showFinished = atom({ plugin: 'subagent-pane', key: 'showFinished' } as const, false)
 
 const ICON: Record<string, [string, string | undefined]> = {
   pending: ['◌', 'yellow'],
@@ -111,34 +112,23 @@ export const register: Register = on => {
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Box, Text, Button } = $.ui.resolve(e)
     const rows = await read($, agents)
+    const isExpanded = await read($, showFinished)
     await read($, tick)
     const now = await $.clock.now()
-    const live = rows.filter(row => isLive(row.status)).length
+    const { live, finished } = splitSections(rows)
     const viewed = e.props?.view?.agentId
+    // One cell of slack: ambiguous-width glyphs (● ■) draw wide on some terminals.
+    const cols = Math.max(12, (e.props?.bodyColumns ?? 80) - 1)
 
     const header = (
       <Box flexDirection="row">
-        <Text bold>{live > 0 ? `${live} running` : 'idle'}</Text>
-        <Text dimColor> · {rows.length} total  </Text>
-        {viewed !== undefined && <Button plain dimColor onPress={() => void $.ui.view({})}>main</Button>}
-        {rows.length > live && (
-          <Button plain dimColor onPress={() => void update($, agents, list => list.filter(row => isLive(row.status)))}>
-            clear
-          </Button>
-        )}
+        <Text bold>{live.length > 0 ? `${live.length} running` : 'idle'}</Text>
         <Text> </Text>
+        {viewed !== undefined && <Button plain dimColor onPress={() => void $.ui.view({})}>main</Button>}
+        {viewed !== undefined && <Text> </Text>}
         <Button plain dimColor role="dismiss" onPress={() => void $.ui.close({ id: PANE })}>close</Button>
       </Box>
     )
-
-    if (rows.length === 0) {
-      return (
-        <Box flexDirection="column">
-          {header}
-          <Text dimColor>No subagents yet.</Text>
-        </Box>
-      )
-    }
 
     const pressStop = async (row: AgentRow) => {
       const at = await $.clock.now()
@@ -159,43 +149,56 @@ export const register: Register = on => {
       else if ('isError' in ran && ran.isError) $.ui.toast(`Stop failed: ${ran.text}`)
     }
 
+    // Exactly two lines per agent: every text is cut to the pane width here, never wrapped.
     const agentRow = (row: AgentRow) => {
       const [icon, color] = ICON[row.status] ?? ['?', undefined]
       const elapsed = formatElapsed((row.endedAt ?? now) - row.startedAt)
       const indent = row.parentId ? '  ' : ''
-      const tokens = row.tokensIn + row.tokensOut > 0 ? `${formatTokens(row.tokensIn)}↑ ${formatTokens(row.tokensOut)}↓` : ''
-      const detail = [shortModel(row.model), `${row.toolCount} tools`, tokens].filter(Boolean).join(' · ')
       const expiry = armed.get(row.id)
       const isArmed = expiry !== undefined && expiry >= now
+      const stop = isLive(row.status) ? (isArmed ? '■ confirm' : '■') : undefined
+      const head = fitHead({ indent, type: row.type, desc: row.description, elapsed, stop }, cols)
+      const tokens = row.tokensIn + row.tokensOut > 0 ? `${formatTokens(row.tokensIn)}↑ ${formatTokens(row.tokensOut)}↓` : ''
+      const detail = [row.tool ? `▸ ${row.tool}` : '', shortModel(row.model), `${row.toolCount} tools`, tokens].filter(Boolean).join(' · ')
       return (
         <Box key={row.id} flexDirection="column">
           <Box flexDirection="row">
-            <Text>{indent}</Text>
-            <Text color={color}>{icon} </Text>
+            <Text color={color}>{indent}{icon} </Text>
             <Button key={`view-${row.id}`} plain onPress={() => void $.ui.view({ agentId: row.id })}>
-              <Text bold={row.id === viewed}>{row.type}</Text>
+              <Text bold={row.id === viewed}>{head.type}</Text>
             </Button>
-            <Text dimColor wrap="truncate"> {row.description}</Text>
-            <Text dimColor> {elapsed} </Text>
-            {isLive(row.status) && (
+            <Text dimColor wrap="truncate">{head.desc ? ` ${head.desc}` : ''} {elapsed}</Text>
+            {stop !== undefined && <Text> </Text>}
+            {stop !== undefined && (
               <Button key={`stop-${row.id}`} plain dimColor={!isArmed} onPress={() => void pressStop(row)}>
-                <Text color={isArmed ? 'red' : undefined}>{isArmed ? '■ confirm' : '■'}</Text>
+                <Text color={isArmed ? 'red' : undefined}>{stop}</Text>
               </Button>
             )}
           </Box>
-          <Text dimColor wrap="truncate">
-            {indent}  {row.tool ? `▸ ${row.tool}  ` : ''}{detail}
-          </Text>
+          <Text dimColor wrap="truncate">{truncateTo(`${indent}  ${detail}`, cols)}</Text>
         </Box>
       )
     }
 
-    // Two lines per agent; newest at the bottom, cut to what fits.
-    const room = Math.max(1, Math.floor(((e.viewport?.rows ?? 24) - 2) / 2))
+    const finishedBar = finished.length > 0 && (
+      <Box flexDirection="row">
+        <Button key="finished" plain dimColor onPress={() => void update($, showFinished, open => !open)}>
+          {`${isExpanded ? '▾' : '▸'} Finished · ${finished.length}`}
+        </Button>
+        <Text> </Text>
+        <Button key="clear" plain dimColor onPress={() => void update($, agents, list => list.filter(row => isLive(row.status)))}>
+          clear
+        </Button>
+      </Box>
+    )
+
     return (
       <Box flexDirection="column">
         {header}
-        {rows.slice(-room).map(agentRow)}
+        {rows.length === 0 && <Text dimColor>No subagents yet.</Text>}
+        {live.map(agentRow)}
+        {finishedBar}
+        {isExpanded && finished.map(agentRow)}
       </Box>
     )
   })

@@ -1,5 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 
+import { displayWidth } from './model'
+
 const PLUGIN = 'subagent-pane'
 const PANE_PROPS = {
   title: 'Subagents',
@@ -37,6 +39,10 @@ for (const surface of ['terminal', 'desktop'] as const) {
 
     await $.turn.complete({ answer: 'done', durationMs: 5, isAborted: false, turnId: 't1', agentId: 'ag1', reason: 'answer', usage: USAGE })
 
+    // Finished agents fold into a collapsed list; pressing it shows them.
+    expect(await ui.find({ type: 'Button', text: 'Finished · 1' })).toBeDefined()
+    expect(await shown()).not.toContain('Explore')
+    await ui.press({ key: 'finished' })
     const texts = await shown()
     expect(texts).toContain('✓')
     expect(texts).toContain('Explore')
@@ -49,6 +55,24 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect(await ui.find({ type: 'Button', text: 'clear' })).toBeDefined()
   })
 }
+
+test('좁은 패널에서도 첫 줄이 폭을 넘지 않는다 (한글 설명 포함)', async ($, on) => {
+  mock.clock(on)
+  on('ui.open', async () => ({ value: { isPlaced: true } }))
+  on('agent.spawn', async () => ({ model: 'claude-haiku-5-5', agentId: 'ag3' }))
+  const cols = 30
+  const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'Pane', requestId: 'subagents', props: { ...PANE_PROPS, bodyColumns: cols } })
+  await $.agent.spawn({
+    tool_use_id: 'tu3', prompt: 'x', description: '설정 파일과 훅 파일을 모두 찾아서 정리하기', subagentType: 'general-purpose',
+    provider: { plugin: 'engine', tier: 'core' }, parentModel: 'claude-opus-5-5', background: true, fork: false,
+  })
+  const rowsDrawn = (await ui.findAll({ type: 'Box' })).filter(b => b.props.flexDirection === 'row')
+  const head = rowsDrawn.find(b => b.text.includes('general'))
+  expect(head).toBeDefined()
+  expect(displayWidth(head?.text ?? '')).toBeLessThanOrEqual(cols - 1)
+  const detail = (await ui.findAll({ type: 'Text' })).find(t => t.text.includes('tools'))
+  expect(displayWidth(detail?.text ?? '')).toBeLessThanOrEqual(cols - 1)
+})
 
 test('/subagent-pane 은 열려 있으면 닫고, 닫혀 있으면 연다', async ($, on) => {
   mock.clock(on)
