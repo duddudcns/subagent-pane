@@ -162,8 +162,10 @@ export const register: Register = on => {
       const indent = row.parentId ? '  ' : ''
       const expiry = armed.get(row.id)
       const isArmed = expiry !== undefined && expiry >= now
-      const stop = isLive(row.status) ? (isArmed ? '■ confirm' : '■') : undefined
-      const head = fitHead({ indent, type: shortType(row.type), desc: row.description, elapsed, stop }, cols)
+      const canStop = isLive(row.status)
+      // Armed, the description gives its place to the confirmation so the line keeps its width.
+      const desc = canStop && isArmed ? 'press ■ again to stop' : row.description
+      const head = fitHead({ indent, type: shortType(row.type), desc, elapsed }, cols)
       const tokens = row.tokensIn + row.tokensOut > 0 ? `${formatTokens(row.tokensIn)}↑ ${formatTokens(row.tokensOut)}↓` : ''
       const detail = [row.tool ? `▸ ${row.tool}` : '', shortModel(row.model), `${row.toolCount} tools`, tokens].filter(Boolean).join(' · ')
       return (
@@ -173,12 +175,17 @@ export const register: Register = on => {
             <Button key={`view-${row.id}`} plain onPress={() => void $.ui.view({ agentId: row.id })}>
               <Text bold={row.id === viewed} color={row.color}>{head.type}</Text>
             </Button>
-            <Text dimColor wrap="truncate">{head.desc ? ` ${head.desc}` : ''} {elapsed}</Text>
-            {stop !== undefined && <Text> </Text>}
-            {stop !== undefined && (
+            <Text dimColor={!(canStop && isArmed)} color={canStop && isArmed ? 'red' : undefined} wrap="truncate">
+              {head.desc ? ` ${head.desc}` : ''}
+            </Text>
+            <Text dimColor>{' '.repeat(head.gap)}{elapsed}</Text>
+            <Text> </Text>
+            {canStop ? (
               <Button key={`stop-${row.id}`} plain dimColor={!isArmed} onPress={() => void pressStop(row)}>
-                <Text color={isArmed ? 'red' : undefined}>{stop}</Text>
+                <Text color={isArmed ? 'red' : undefined}>■</Text>
               </Button>
+            ) : (
+              <Text> </Text>
             )}
           </Box>
           <Text dimColor wrap="truncate">{truncateTo(`${indent}  ${detail}`, cols)}</Text>

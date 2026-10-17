@@ -95,17 +95,23 @@ test('실행 중은 시작 순서 그대로, 완료는 최근에 끝난 것부�
   expect(finished.map(r => r.id)).toEqual(['c', 'a'])
 })
 
-test('첫 줄은 폭 안에 들어가게 설명부터, 그다음 종류를 자른다', async () => {
-  const spec = { indent: '', type: 'general-purpose', desc: '설정 파일 찾기', elapsed: '1m02s', stop: '■' }
-  // icon(1)+space(1)+type+space+desc+space+elapsed+space+stop
+test('첫 줄은 폭을 꽉 채우고, 경과 시간은 오른쪽 끝(■ 자리 2칸 앞)에 붙는다', async () => {
+  const spec = { indent: '', type: 'general-purpose', desc: '설정 파일 찾기', elapsed: '1m02s' }
+  // icon(1)+space(1)+type+[space+desc]+gap+elapsed+stop slot(2)
+  const line = (h: { type: string; desc: string; gap: number }) =>
+    2 + displayWidth(h.type) + (h.desc ? 1 + displayWidth(h.desc) : 0) + h.gap + 5 + 2
   const wide = fitHead(spec, 80)
-  expect(wide).toEqual({ type: 'general-purpose', desc: '설정 파일 찾기' })
+  expect(wide.type).toBe('general-purpose')
+  expect(wide.desc).toBe('설정 파일 찾기')
+  expect(line(wide)).toBe(80)
   const mid = fitHead(spec, 30)
   expect(mid.type).toBe('general-purpose')
-  expect(2 + displayWidth(mid.type) + 1 + displayWidth(mid.desc) + 1 + 5 + 2).toBeLessThanOrEqual(30)
+  expect(mid.gap).toBeGreaterThanOrEqual(1)
+  expect(line(mid)).toBeLessThanOrEqual(30)
   const narrow = fitHead(spec, 16)
   expect(narrow.desc).toBe('')
-  expect(2 + displayWidth(narrow.type) + 1 + 5 + 2).toBeLessThanOrEqual(16)
+  expect(narrow.gap).toBe(1)
+  expect(line(narrow)).toBeLessThanOrEqual(16)
 })
 
 test('종류 이름은 플러그인 접두사를 뗀다', async () => {

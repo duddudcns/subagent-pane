@@ -112,18 +112,23 @@ export const truncateTo = (text: string, width: number): string => {
   return `${out}…`
 }
 
-type Head = { indent: string; type: string; desc: string; elapsed: string; stop?: string }
+type Head = { indent: string; type: string; desc: string; elapsed: string }
 
-// The first row line is: indent, icon + space, type, [space + desc], space + elapsed, [space + stop].
-// It must fit `cols` so an agent stays two lines: the description gives way first, then the type.
-export const fitHead = (head: Head, cols: number): { type: string; desc: string } => {
-  const fixed = displayWidth(head.indent) + 2 + displayWidth(head.type) + 1 + displayWidth(head.elapsed) +
-    (head.stop ? 1 + displayWidth(head.stop) : 0)
+// Every row keeps a 2-cell stop slot at the right edge (` ■`, or blank once finished),
+// so the elapsed times of all rows end in one column.
+export const STOP_SLOT = 2
+
+// The first row line is: indent, icon + space, type, [space + desc], gap, elapsed, stop slot.
+// It fills exactly `cols` so an agent stays two lines: the description gives way first, then the type.
+export const fitHead = (head: Head, cols: number): { type: string; desc: string; gap: number } => {
+  const fixed = displayWidth(head.indent) + 2 + displayWidth(head.type) + 1 + displayWidth(head.elapsed) + STOP_SLOT
   if (fixed > cols) {
-    return { type: truncateTo(head.type, displayWidth(head.type) - (fixed - cols)), desc: '' }
+    return { type: truncateTo(head.type, displayWidth(head.type) - (fixed - cols)), desc: '', gap: 1 }
   }
   const room = cols - fixed - 1
-  return { type: head.type, desc: room >= 2 ? truncateTo(head.desc, room) : '' }
+  const desc = room >= 2 ? truncateTo(head.desc, room) : ''
+  const used = fixed - 1 + (desc ? 1 + displayWidth(desc) : 0)
+  return { type: head.type, desc, gap: cols - used }
 }
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
