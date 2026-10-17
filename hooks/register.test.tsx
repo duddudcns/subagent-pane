@@ -111,6 +111,30 @@ test('백그라운드 Bash는 행이 생기고, 작업 알림이 오면 끝난�
   expect(await ui.find({ type: 'Button', text: 'Finished · 1' })).toBeDefined()
 })
 
+test('알림이 빠진 셸 행도 턴 끝(Stop)의 작업 목록으로 끝난다', async ($, on) => {
+  mock.clock(on)
+  on('tool.call', async () => ({ result: { stdout: '', stderr: '', interrupted: false, backgroundTaskId: 'lost1' } }))
+  on('classic.Stop', async () => ({}))
+  const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'Pane', requestId: 'subagents', props: PANE_PROPS })
+  await $.tool.call({ tool: 'Bash', command: 'sleep 40', run_in_background: true })
+  expect((await ui.findAll({ type: 'Text' })).map(t => t.text).join('\n')).toContain('1 running')
+  await $.classic.Stop({ stop_hook_active: false, background_tasks: [] } as Parameters<typeof $.classic.Stop>[0])
+  expect((await ui.findAll({ type: 'Text' })).map(t => t.text).join('\n')).toContain('idle')
+})
+
+test('이미 끝난 작업의 중지(No task found)는 에러 대신 행을 끝낸다', async ($, on) => {
+  mock.clock(on)
+  on('tool.call', async (_$, e) =>
+    e.tool === 'TaskStop'
+      ? { result: 'Error: No task found with ID: gone1', text: '<tool_use_error>No task found with ID: gone1</tool_use_error>', isError: true }
+      : { result: { stdout: '', stderr: '', interrupted: false, backgroundTaskId: 'gone1' } })
+  const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'Pane', requestId: 'subagents', props: PANE_PROPS })
+  await $.tool.call({ tool: 'Bash', command: 'sleep 40', run_in_background: true })
+  await ui.press({ key: 'stop-gone1' })
+  await ui.press({ key: 'stop-gone1' })
+  expect((await ui.findAll({ type: 'Text' })).map(t => t.text).join('\n')).toContain('idle')
+})
+
 test('포그라운드 Bash는 행을 만들지 않는다', async ($, on) => {
   mock.clock(on)
   on('tool.call', async () => ({ result: { stdout: 'ok', stderr: '', interrupted: false } }))

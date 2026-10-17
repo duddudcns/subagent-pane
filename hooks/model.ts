@@ -78,6 +78,15 @@ export const backgroundTaskIdOf = (ran: unknown): string | undefined => {
   return typeof result?.backgroundTaskId === 'string' ? result.backgroundTaskId : undefined
 }
 
+// A shell's end notification can go missing; the engine's list of in-flight background
+// work (at each main turn's end) is the backstop: a live shell row not in it has ended.
+export const reconcileShells = (list: AgentRow[], liveIds: Set<string>, now: number): AgentRow[] =>
+  list.map(row =>
+    row.kind === 'shell' && isLive(row.status) && !liveIds.has(row.id)
+      ? { ...row, status: 'completed', endedAt: row.endedAt ?? now }
+      : row,
+  )
+
 export const parseNotification = (text: string): { id: string; status?: string } | undefined => {
   const id = text.match(/<task-id>([^<]+)<\/task-id>/)?.[1]?.trim()
   if (!id) return undefined

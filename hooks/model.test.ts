@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { addAgent, addShell, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, MIN_GAP, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
+import { reconcileShells, addAgent, addShell, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, MIN_GAP, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
 
 const base = () => addAgent([], { id: 'a1', type: 'Explore', description: 'find x', startedAt: 1_000, model: 'haiku' })
 
@@ -154,4 +154,13 @@ test('알림 본문에서 task-id와 status를 읽는다', async () => {
   expect(parseNotification(text)).toEqual({ id: 'bk3x9', status: 'completed' })
   expect(parseNotification('<task-id>z</task-id>')).toEqual({ id: 'z', status: undefined })
   expect(parseNotification('hello')).toBeUndefined()
+})
+
+test('엔진의 실행 중 작업 목록에 없는 셸 행은 끝난 것으로 맞춘다 (서브에이전트 행은 그대로)', async () => {
+  let list = addShell([], { id: 'b1', shell: 'bash', command: 'x', startedAt: 1 })
+  list = addShell(list, { id: 'b2', shell: 'bash', command: 'y', startedAt: 1 })
+  list = addAgent(list, { id: 'a1', type: 'Explore', description: 'd', startedAt: 1 })
+  const out = reconcileShells(list, new Set(['b2']), 50)
+  expect(out.map(r => [r.id, r.status])).toEqual([['b1', 'completed'], ['b2', 'running'], ['a1', 'running']])
+  expect(out[0]?.endedAt).toBe(50)
 })

@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { AgentRow } from '../types'
 import { resolveColor } from './colors'
 import { startTrace, trace } from './trace'
-import { padTo, addAgent, addShell, backgroundTaskIdOf, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
+import { padTo, reconcileShells, addAgent, addShell, backgroundTaskIdOf, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
 
 const PANE = 'subagents'
 const TITLE = 'Subagents'
@@ -38,7 +38,7 @@ export const register: Register = (on, options) => {
   // Both off by default: the detail line names the current tool and the model.
   const showTokens = options.showTokens === true
   const showToolCount = options.showToolCount === true
-  // Stop takes two presses: the first arms it for STOP_ARM_MS.
+  // Stop takes two presses: the first arms it for STOP_ARM_MS, the second calls TaskStop.
   const armed = new Map<string, number>()
 
   on('session.start', async ($, e, next) => {
@@ -131,6 +131,17 @@ export const register: Register = (on, options) => {
     return ran
   }).catch(($, e, next) => next(e))
 
+  // At each main turn's end the engine lists the background work still in flight.
+  on('classic.Stop', async ($, e, next) => {
+    const ran = await next(e)
+    if (e.background_tasks !== undefined) {
+      const live = new Set(e.background_tasks.map(task => task.id))
+      const now = await $.clock.now()
+      await update($, agents, rows => reconcileShells(rows, live, now))
+    }
+    return ran
+  })
+
   on('turn.complete', async ($, e, next) => {
     const id = e.agentId
     if (id !== undefined) {
@@ -177,6 +188,12 @@ export const register: Register = (on, options) => {
         consent: `The user pressed "stop" twice on subagent ${row.type} (${row.description}) in the subagent pane.`,
       })
       await trace($, 'stop', { id: row.id, ran: JSON.parse(JSON.stringify(ran)) })
+      // Already over (its end notification was missed): settle the row instead of reporting an error.
+      if ('isError' in ran && ran.isError && /No task found/.test(ran.text ?? '')) {
+        const at2 = await $.clock.now()
+        await update($, agents, rows => finishTask(rows, row.id, 'completed', at2))
+        return
+      }
       if ('deny' in ran && ran.deny) $.ui.toast(`Stop failed: ${ran.deny}`)
       else if ('isError' in ran && ran.isError) $.ui.toast(`Stop failed: ${ran.text}`)
     }
