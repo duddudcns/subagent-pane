@@ -269,9 +269,13 @@ export const register: Register = (on, options) => {
     )
 
     // Finished sits at the pane's bottom: an empty block takes whatever height is left above it.
+    // The Finished area has a fixed height (40% of the pane, at least 6 lines), so opening or
+    // closing its list never moves its bar; unknown pane height falls back to natural height.
     const bodyRows = e.props?.scroll?.bodyRows ?? 0
-    const used = 1 + (rows.length === 0 ? 1 : 0) + live.length * 2 + (finished.length > 0 ? 2 + (isExpanded ? finished.length * 2 : 0) : 0)
-    const spacer = finished.length > 0 ? Math.max(0, bodyRows - used) : 0
+    const finishedHeight = finished.length > 0 && bodyRows > 0 ? Math.max(6, Math.floor(bodyRows * 0.4)) : 0
+    const fits = finishedHeight > 0 ? Math.max(0, Math.floor((finishedHeight - 2) / 2)) : finished.length
+    const used = 1 + (rows.length === 0 ? 1 : 0) + live.length * 2
+    const spacer = finishedHeight > 0 ? Math.max(0, bodyRows - used - finishedHeight) : 0
 
     return (
       <Box flexDirection="column">
@@ -279,8 +283,12 @@ export const register: Register = (on, options) => {
         {rows.length === 0 && <Text dimColor>No subagents yet.</Text>}
         {live.map(agentRow)}
         {spacer > 0 && <Box key="spacer" height={spacer} />}
-        {finishedBar}
-        {isExpanded && finished.map(agentRow)}
+        {finished.length > 0 && (
+          <Box key="finished-area" flexDirection="column" height={finishedHeight || undefined}>
+            {finishedBar}
+            {isExpanded && finished.slice(0, fits).map(agentRow)}
+          </Box>
+        )}
       </Box>
     )
   })

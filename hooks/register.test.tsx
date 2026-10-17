@@ -172,9 +172,14 @@ test('Finished 묶음은 패널 맨 아래에 붙고, 남는 높이는 빈 공�
   await spawn('live one')
   await spawn('done one')
   await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't', agentId: 'p2', reason: 'answer' })
-  // header 1 + live 2 + finished bar block 2 (blank + bar) = 5 lines; the spacer takes the other 15.
-  const spacer = (await ui.findAll({ type: 'Box' })).find(b => b.key === 'spacer')
-  expect(spacer?.props.height).toBe(rows - 5)
+  // header 1 + live 2 above; the Finished area keeps a fixed 40% (min 6) = 8 lines; the spacer takes the rest.
+  const heightOf = async (key: string) => (await ui.findAll({ type: 'Box' })).find(b => b.key === key)?.props.height
+  expect(await heightOf('finished-area')).toBe(8)
+  expect(await heightOf('spacer')).toBe(rows - 3 - 8)
+  // Opening and closing the list never moves the Finished bar.
+  await ui.press({ key: 'finished' })
+  expect(await heightOf('spacer')).toBe(rows - 3 - 8)
+  expect(await heightOf('finished-area')).toBe(8)
 })
 
 test('좁은 패널에서도 첫 줄이 폭을 넘지 않는다 (한글 설명 포함)', async ($, on) => {
