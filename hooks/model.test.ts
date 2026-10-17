@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { treeOrder, stopOutcome, reconcileShells, addAgent, addShell, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, MIN_GAP, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
+import { treePrefix, treeOrder, stopOutcome, reconcileShells, addAgent, addShell, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, MIN_GAP, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
 
 const base = () => addAgent([], { id: 'a1', type: 'Explore', description: 'find x', startedAt: 1_000, model: 'haiku' })
 
@@ -179,4 +179,10 @@ test('실행 중 목록은 부모 바로 아래에 자식을 모은다 (깊이 �
   list = addShell(list, { id: 'b2', shell: 'bash', command: 'child shell', startedAt: 3, parentId: 'r' })
   list = addShell(list, { id: 'b3', shell: 'bash', command: 'orphan', startedAt: 4, parentId: 'gone' })
   expect(treeOrder(list).map(n => [n.row.id, n.depth])).toEqual([['r', 0], ['b2', 1], ['b1', 0], ['b3', 0]])
+})
+
+test('자식 행 첫 줄은 └ 로 부모에 이어지고, 둘째 줄은 같은 폭의 빈칸', async () => {
+  expect(treePrefix(0)).toEqual({ head: '', tail: '' })
+  expect(treePrefix(1)).toEqual({ head: '└ ', tail: '  ' })
+  expect(treePrefix(2)).toEqual({ head: '  └ ', tail: '    ' })
 })

@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { AgentRow } from '../types'
 import { resolveColor } from './colors'
 import { startTrace, trace } from './trace'
-import { treeOrder, stopOutcome, padTo, reconcileShells, addAgent, addShell, backgroundTaskIdOf, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
+import { treePrefix, treeOrder, stopOutcome, padTo, reconcileShells, addAgent, addShell, backgroundTaskIdOf, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
 
 const PANE = 'subagents'
 const TITLE = 'Subagents'
@@ -207,7 +207,7 @@ export const register: Register = (on, options) => {
     // Exactly two lines per agent: every text is cut to the pane width here, never wrapped.
     const agentRow = (row: AgentRow, depth = 0) => {
       const elapsed = formatElapsed((row.endedAt ?? now) - row.startedAt)
-      const indent = '  '.repeat(depth)
+      const { head: indent, tail: tailIndent } = treePrefix(depth)
       const expiry = armed.get(row.id)
       const isArmed = expiry !== undefined && expiry >= now
       const canStop = isLive(row.status)
@@ -222,7 +222,7 @@ export const register: Register = (on, options) => {
       return (
         <Box key={row.id} flexDirection="column">
           <Box flexDirection="row">
-            {indent && <Text>{indent}</Text>}
+            {indent && <Text dimColor>{indent}</Text>}
             <Button key={`view-${row.id}`} plain onPress={() => void $.ui.view({ agentId: row.id })}>
               <Text bold={row.id === viewed} color={row.color}>{head.type}</Text>
             </Button>
@@ -234,7 +234,7 @@ export const register: Register = (on, options) => {
           {canStop ? (
             // The stop control sits at the end of line two: faint at rest, red while the pointer is on it.
             <Box flexDirection="row">
-              <Text dimColor>{padTo(truncateTo(`${indent}  ${detail}`, cols - 2), cols - 2)} </Text>
+              <Text dimColor>{padTo(truncateTo(`${tailIndent}  ${detail}`, cols - 2), cols - 2)} </Text>
               {/* Its own keyed Box: hover lights the x only while the pointer is on the x itself. */}
               <Box key={`stopbox-${row.id}`}>
                 <Button key={`stop-${row.id}`} plain dimColor={!isArmed} onPress={() => void pressStop(row)}>
@@ -243,7 +243,7 @@ export const register: Register = (on, options) => {
               </Box>
             </Box>
           ) : (
-            <Text dimColor wrap="truncate">{truncateTo(`${indent}  ${detail}`, cols)}</Text>
+            <Text dimColor wrap="truncate">{truncateTo(`${tailIndent}  ${detail}`, cols)}</Text>
           )}
         </Box>
       )

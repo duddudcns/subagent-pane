@@ -144,6 +144,10 @@ export const shortType = (type: string): string => type.slice(type.lastIndexOf('
 
 // Live rows as a tree: each row directly followed by the rows it spawned, in start order.
 // A row whose parent is not in the list (main's, or a parent already gone) starts at depth 0.
+// A child's first line hangs off its parent with └; its second line keeps the same width in spaces.
+export const treePrefix = (depth: number): { head: string; tail: string } =>
+  depth <= 0 ? { head: '', tail: '' } : { head: `${'  '.repeat(depth - 1)}└ `, tail: '  '.repeat(depth) }
+
 export const treeOrder = (list: AgentRow[]): { row: AgentRow; depth: number }[] => {
   const ids = new Set(list.map(row => row.id))
   const out: { row: AgentRow; depth: number }[] = []
