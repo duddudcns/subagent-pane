@@ -87,7 +87,7 @@ test('Finished 묶음은 빈 줄과 구분선으로 실행 중 묶음과 떨어�
   expect(texts[rule - 1]?.trim() ?? 'missing').toBe('')
   const bar = (await ui.findAll({ type: 'Box' })).find(b => b.props.flexDirection === 'row' && b.text.includes('Finished'))
   expect(bar).toBeDefined()
-  expect(displayWidth(bar?.text ?? '')).toBeLessThanOrEqual(cols - 1)
+  expect(displayWidth(bar?.text ?? '')).toBeLessThanOrEqual(cols)
 })
 
 test('백그라운드 Bash는 행이 생기고, 작업 알림이 오면 끝난다', async ($, on) => {
@@ -132,9 +132,15 @@ test('좁은 패널에서도 첫 줄이 폭을 넘지 않는다 (한글 설명 �
   const rowsDrawn = (await ui.findAll({ type: 'Box' })).filter(b => b.props.flexDirection === 'row')
   const head = rowsDrawn.find(b => b.text.includes('general'))
   expect(head).toBeDefined()
-  expect(displayWidth(head?.text ?? '')).toBeLessThanOrEqual(cols - 1)
+  // The time ends exactly at the pane's edge.
+  expect(displayWidth(head?.text ?? '')).toBe(cols)
+  expect(head?.text.endsWith('0s')).toBe(true)
   const detail = (await ui.findAll({ type: 'Text' })).find(t => t.text.includes('haiku'))
-  expect(displayWidth(detail?.text ?? '')).toBeLessThanOrEqual(cols - 1)
+  // Line two ends in the stop control, also at the edge.
+  const second = rowsDrawn.find(b => b.text.includes('haiku'))
+  expect(displayWidth(second?.text ?? '')).toBe(cols)
+  expect(second?.text.endsWith('x')).toBe(true)
+  expect(displayWidth(detail?.text ?? '')).toBeLessThanOrEqual(cols)
 })
 
 test('/subagent-pane 은 열려 있으면 닫고, 닫혀 있으면 연다', async ($, on) => {

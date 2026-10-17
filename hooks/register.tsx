@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { AgentRow } from '../types'
 import { resolveColor } from './colors'
 import { startTrace, trace } from './trace'
-import { addAgent, addShell, backgroundTaskIdOf, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
+import { padTo, addAgent, addShell, backgroundTaskIdOf, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
 
 const PANE = 'subagents'
 const TITLE = 'Subagents'
@@ -149,8 +149,8 @@ export const register: Register = (on, options) => {
     const now = await $.clock.now()
     const { live, finished } = splitSections(rows)
     const viewed = e.props?.view?.agentId
-    // One cell of slack: ambiguous-width glyphs (● ■) draw wide on some terminals.
-    const cols = Math.max(12, (e.props?.bodyColumns ?? 80) - 1)
+    // Rows fill the pane exactly: the time ends at the right edge.
+    const cols = Math.max(12, e.props?.bodyColumns ?? 80)
 
     const header = (
       <Box flexDirection="row">
@@ -189,7 +189,7 @@ export const register: Register = (on, options) => {
       const isArmed = expiry !== undefined && expiry >= now
       const canStop = isLive(row.status)
       // Armed, the description gives its place to the confirmation so the line keeps its width.
-      const desc = canStop && isArmed ? 'press ■ again to stop' : row.description
+      const desc = canStop && isArmed ? 'press x again to stop' : row.description
       const head = fitHead({ indent, type: shortType(row.type), desc, elapsed }, cols)
       const tokens = showTokens && row.tokensIn + row.tokensOut > 0 ? `${formatTokens(row.tokensIn)}↑ ${formatTokens(row.tokensOut)}↓` : ''
       const toolCount = showToolCount ? `${row.toolCount} tools` : ''
@@ -207,16 +207,18 @@ export const register: Register = (on, options) => {
               {head.desc ? ` ${head.desc}` : ''}
             </Text>
             <Text color={canStop ? 'yellow' : STATUS_COLOR[row.status]} dimColor={row.status === 'killed'}>{' '.repeat(head.gap)}{elapsed}</Text>
-            <Text> </Text>
-            {canStop ? (
-              <Button key={`stop-${row.id}`} plain dimColor={!isArmed} onPress={() => void pressStop(row)}>
-                <Text color={isArmed ? 'red' : undefined}>■</Text>
-              </Button>
-            ) : (
-              <Text> </Text>
-            )}
           </Box>
-          <Text dimColor wrap="truncate">{truncateTo(`${indent}  ${detail}`, cols)}</Text>
+          {canStop ? (
+            // The stop control sits at the end of line two: faint at rest, red while the row is hovered.
+            <Box flexDirection="row">
+              <Text dimColor>{padTo(truncateTo(`${indent}  ${detail}`, cols - 2), cols - 2)} </Text>
+              <Button key={`stop-${row.id}`} plain dimColor={!isArmed} onPress={() => void pressStop(row)}>
+                <Text color={isArmed ? 'red' : undefined} hover={{ color: 'red', dimColor: false }}>x</Text>
+              </Button>
+            </Box>
+          ) : (
+            <Text dimColor wrap="truncate">{truncateTo(`${indent}  ${detail}`, cols)}</Text>
+          )}
         </Box>
       )
     }
