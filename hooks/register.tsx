@@ -226,12 +226,15 @@ export const register: Register = (on, options) => {
             <Text color={canStop ? 'yellow' : STATUS_COLOR[row.status]} dimColor={row.status === 'killed'}>{' '.repeat(head.gap)}{elapsed}</Text>
           </Box>
           {canStop ? (
-            // The stop control sits at the end of line two: faint at rest, red while the row is hovered.
+            // The stop control sits at the end of line two: faint at rest, red while the pointer is on it.
             <Box flexDirection="row">
               <Text dimColor>{padTo(truncateTo(`${indent}  ${detail}`, cols - 2), cols - 2)} </Text>
-              <Button key={`stop-${row.id}`} plain dimColor={!isArmed} onPress={() => void pressStop(row)}>
-                <Text color={isArmed ? 'red' : undefined} hover={{ color: 'red', dimColor: false }}>x</Text>
-              </Button>
+              {/* Its own keyed Box: hover lights the x only while the pointer is on the x itself. */}
+              <Box key={`stopbox-${row.id}`}>
+                <Button key={`stop-${row.id}`} plain dimColor={!isArmed} onPress={() => void pressStop(row)}>
+                  <Text color={isArmed ? 'red' : undefined} hover={{ color: 'red', dimColor: false }}>x</Text>
+                </Button>
+              </Box>
             </Box>
           ) : (
             <Text dimColor wrap="truncate">{truncateTo(`${indent}  ${detail}`, cols)}</Text>
