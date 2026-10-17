@@ -175,10 +175,10 @@ export const register: Register = on => {
             <Button key={`view-${row.id}`} plain onPress={() => void $.ui.view({ agentId: row.id })}>
               <Text bold={row.id === viewed} color={row.color}>{head.type}</Text>
             </Button>
-            <Text dimColor={!(canStop && isArmed)} color={canStop && isArmed ? 'red' : undefined} wrap="truncate">
+            <Text color={canStop && isArmed ? 'red' : undefined} wrap="truncate">
               {head.desc ? ` ${head.desc}` : ''}
             </Text>
-            <Text dimColor>{' '.repeat(head.gap)}{elapsed}</Text>
+            <Text>{' '.repeat(head.gap)}{elapsed}</Text>
             <Text> </Text>
             {canStop ? (
               <Button key={`stop-${row.id}`} plain dimColor={!isArmed} onPress={() => void pressStop(row)}>

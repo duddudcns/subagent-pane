@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { addAgent, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
+import { addAgent, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, MIN_GAP, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
 
 const base = () => addAgent([], { id: 'a1', type: 'Explore', description: 'find x', startedAt: 1_000, model: 'haiku' })
 
@@ -95,6 +95,13 @@ test('실행 중은 시작 순서 그대로, 완료는 최근에 끝난 것부�
   expect(finished.map(r => r.id)).toEqual(['c', 'a'])
 })
 
+test('설명과 경과 시간 사이는 최소 3칸 띄운다', async () => {
+  expect(MIN_GAP).toBe(3)
+  const h = fitHead({ indent: '', type: 'runner', desc: 'Color test: git log and sleep for a while', elapsed: '38s' }, 30)
+  expect(h.desc.endsWith('…')).toBe(true)
+  expect(h.gap).toBe(MIN_GAP)
+})
+
 test('첫 줄은 폭을 꽉 채우고, 경과 시간은 오른쪽 끝(■ 자리 2칸 앞)에 붙는다', async () => {
   const spec = { indent: '', type: 'general-purpose', desc: '설정 파일 찾기', elapsed: '1m02s' }
   // icon(1)+space(1)+type+[space+desc]+gap+elapsed+stop slot(2)
@@ -106,11 +113,11 @@ test('첫 줄은 폭을 꽉 채우고, 경과 시간은 오른쪽 끝(■ 자리
   expect(line(wide)).toBe(80)
   const mid = fitHead(spec, 30)
   expect(mid.type).toBe('general-purpose')
-  expect(mid.gap).toBeGreaterThanOrEqual(1)
+  expect(mid.gap).toBeGreaterThanOrEqual(MIN_GAP)
   expect(line(mid)).toBeLessThanOrEqual(30)
   const narrow = fitHead(spec, 16)
   expect(narrow.desc).toBe('')
-  expect(narrow.gap).toBe(1)
+  expect(narrow.gap).toBe(MIN_GAP)
   expect(line(narrow)).toBeLessThanOrEqual(16)
 })
 
