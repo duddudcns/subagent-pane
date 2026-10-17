@@ -49,6 +49,8 @@ for (const surface of ['terminal', 'desktop'] as const) {
     await ui.press({ key: 'finished' })
     const texts = await shown()
     expect(texts).toContain('✓')
+    // A finished row's elapsed time takes its status colour.
+    expect((await ui.findAll({ type: 'Text' })).find(t => /^\s+\d+s$/.test(t.text))?.props.color).toBe('green')
     expect(texts).toContain('Explore')
     expect(texts).toContain('find the config')
     expect(texts).toContain('1 tools')

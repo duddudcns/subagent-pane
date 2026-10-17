@@ -209,7 +209,7 @@ export const register: Register = on => {
             <Text color={canStop && isArmed ? 'red' : undefined} wrap="truncate">
               {head.desc ? ` ${head.desc}` : ''}
             </Text>
-            <Text color={canStop ? 'yellow' : undefined}>{' '.repeat(head.gap)}{elapsed}</Text>
+            <Text color={canStop ? 'yellow' : color} dimColor={row.status === 'killed'}>{' '.repeat(head.gap)}{elapsed}</Text>
             <Text> </Text>
             {canStop ? (
               <Button key={`stop-${row.id}`} plain dimColor={!isArmed} onPress={() => void pressStop(row)}>
