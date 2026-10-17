@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { addAgent, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
+import { addAgent, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
 
 const base = () => addAgent([], { id: 'a1', type: 'Explore', description: 'find x', startedAt: 1_000, model: 'haiku' })
 
@@ -27,6 +27,11 @@ test('도구 시작은 현재 도구와 횟수를, 끝은 현재 도구만 지�
 test('다른 도구가 이미 시작됐으면 늦게 끝난 도구는 현재 도구를 지우지 않는다', async () => {
   const s = startTool(startTool(base(), 'a1', 'Grep'), 'a1', 'Read')
   expect(endTool(s, 'a1', 'Grep')[0]?.tool).toBe('Read')
+})
+
+test('색은 해당 행에만 붙는다', async () => {
+  expect(setColor(base(), 'a1', 'cyan')[0]?.color).toBe('cyan')
+  expect(setColor(base(), 'zz', 'cyan')[0]?.color).toBeUndefined()
 })
 
 test('모르는 id의 도구 호출은 목록을 바꾸지 않는다', async () => {

@@ -41,6 +41,9 @@ export const addAgent = (list: AgentRow[], spawned: Spawned): AgentRow[] => {
   return trim([...list, row])
 }
 
+export const setColor = (list: AgentRow[], id: string, color: string): AgentRow[] =>
+  patch(list, id, row => ({ ...row, color }))
+
 export const startTool = (list: AgentRow[], id: string, tool: string): AgentRow[] =>
   patch(list, id, row => ({ ...row, tool, toolCount: row.toolCount + 1 }))
 

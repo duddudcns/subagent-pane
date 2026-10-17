@@ -7,6 +7,7 @@ export type AgentRow = {
   endedAt?: number
   model?: string
   parentId?: string
+  color?: string
   tool?: string
   toolCount: number
   tokensIn: number

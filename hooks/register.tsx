@@ -2,8 +2,9 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { AgentRow } from '../types'
+import { resolveColor } from './colors'
 import { startTrace, trace } from './trace'
-import { addAgent, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
+import { addAgent, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
 
 const PANE = 'subagents'
 const TITLE = 'Subagents'
@@ -79,6 +80,11 @@ export const register: Register = on => {
       }),
     )
     await update($, tick, () => startedAt)
+    // The colour lookup reads files: never hold the spawn for it.
+    const id = result.agentId
+    void resolveColor($, e.subagentType)
+      .then(color => (color ? update($, agents, rows => setColor(rows, id, color)) : undefined))
+      .catch(() => undefined)
     await trace($, 'spawn', { id: result.agentId, type: e.subagentType, background: e.background, parent: e.parentAgentId })
     if (!opened) {
       opened = true
@@ -165,7 +171,7 @@ export const register: Register = on => {
           <Box flexDirection="row">
             <Text color={color}>{indent}{icon} </Text>
             <Button key={`view-${row.id}`} plain onPress={() => void $.ui.view({ agentId: row.id })}>
-              <Text bold={row.id === viewed}>{head.type}</Text>
+              <Text bold={row.id === viewed} color={row.color}>{head.type}</Text>
             </Button>
             <Text dimColor wrap="truncate">{head.desc ? ` ${head.desc}` : ''} {elapsed}</Text>
             {stop !== undefined && <Text> </Text>}
