@@ -56,6 +56,30 @@ for (const surface of ['terminal', 'desktop'] as const) {
   })
 }
 
+test('Finished 묶음은 빈 줄과 구분선으로 실행 중 묶음과 떨어진다', async ($, on) => {
+  mock.clock(on)
+  on('ui.open', async () => ({ value: { isPlaced: true } }))
+  let next = 0
+  on('agent.spawn', async () => ({ model: 'claude-haiku-5-5', agentId: `s${++next}` }))
+  on('turn.complete', async (_$, e) => ({ text: e.answer }))
+  const cols = 40
+  const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'Pane', requestId: 'subagents', props: { ...PANE_PROPS, bodyColumns: cols } })
+  const spawn = (description: string) => $.agent.spawn({
+    tool_use_id: description, prompt: 'x', description, subagentType: 'Explore',
+    provider: { plugin: 'engine', tier: 'core' }, parentModel: 'claude-opus-5-5', background: true, fork: false,
+  })
+  await spawn('still running')
+  await spawn('already done')
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't', agentId: 's2', reason: 'answer' })
+  const texts = (await ui.findAll({ type: 'Text' })).map(t => t.text)
+  const rule = texts.findIndex(t => t.includes('───'))
+  expect(rule).toBeGreaterThan(-1)
+  expect(texts[rule - 1]?.trim() ?? 'missing').toBe('')
+  const bar = (await ui.findAll({ type: 'Box' })).find(b => b.props.flexDirection === 'row' && b.text.includes('Finished'))
+  expect(bar).toBeDefined()
+  expect(displayWidth(bar?.text ?? '')).toBeLessThanOrEqual(cols - 1)
+})
+
 test('좁은 패널에서도 첫 줄이 폭을 넘지 않는다 (한글 설명 포함)', async ($, on) => {
   mock.clock(on)
   on('ui.open', async () => ({ value: { isPlaced: true } }))

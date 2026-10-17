@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { AgentRow } from '../types'
 import { resolveColor } from './colors'
 import { startTrace, trace } from './trace'
-import { addAgent, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
+import { addAgent, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
 
 const PANE = 'subagents'
 const TITLE = 'Subagents'
@@ -186,15 +186,22 @@ export const register: Register = on => {
       )
     }
 
+    // A blank line, then the label running into a rule to the pane's edge, sets the finished group apart.
+    const finishedLabel = `${isExpanded ? '▾' : '▸'} Finished · ${finished.length}`
+    const ruleWidth = Math.max(0, cols - displayWidth(finishedLabel) - ' clear '.length)
     const finishedBar = finished.length > 0 && (
-      <Box flexDirection="row">
-        <Button key="finished" plain dimColor onPress={() => void update($, showFinished, open => !open)}>
-          {`${isExpanded ? '▾' : '▸'} Finished · ${finished.length}`}
-        </Button>
+      <Box flexDirection="column">
         <Text> </Text>
-        <Button key="clear" plain dimColor onPress={() => void update($, agents, list => list.filter(row => isLive(row.status)))}>
-          clear
-        </Button>
+        <Box flexDirection="row">
+          <Button key="finished" plain dimColor onPress={() => void update($, showFinished, open => !open)}>
+            {finishedLabel}
+          </Button>
+          <Text> </Text>
+          <Button key="clear" plain dimColor onPress={() => void update($, agents, list => list.filter(row => isLive(row.status)))}>
+            clear
+          </Button>
+          <Text dimColor> {'─'.repeat(ruleWidth)}</Text>
+        </Box>
       </Box>
     )
 
