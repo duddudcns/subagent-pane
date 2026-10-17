@@ -74,7 +74,10 @@ export const syncStatus = (list: AgentRow[], engine: { id: string; status: strin
   return next
 }
 
-export const splitSections = (list: AgentRow[]): { live: AgentRow[]; finished: AgentRow[] } => ({
+// `subagents:runner` shows as `runner`: the plugin prefix only costs width.
+export const shortType = (type: string): string => type.slice(type.lastIndexOf(':') + 1)
+
+export const splitSections =(list: AgentRow[]): { live: AgentRow[]; finished: AgentRow[] } => ({
   live: list.filter(row => isLive(row.status)),
   finished: list.filter(row => !isLive(row.status)).sort((a, b) => (b.endedAt ?? 0) - (a.endedAt ?? 0)),
 })

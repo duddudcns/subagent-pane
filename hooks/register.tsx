@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { AgentRow } from '../types'
 import { startTrace, trace } from './trace'
-import { addAgent, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, splitSections, startTool, syncStatus, truncateTo } from './model'
+import { addAgent, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
 
 const PANE = 'subagents'
 const TITLE = 'Subagents'
@@ -157,7 +157,7 @@ export const register: Register = on => {
       const expiry = armed.get(row.id)
       const isArmed = expiry !== undefined && expiry >= now
       const stop = isLive(row.status) ? (isArmed ? '■ confirm' : '■') : undefined
-      const head = fitHead({ indent, type: row.type, desc: row.description, elapsed, stop }, cols)
+      const head = fitHead({ indent, type: shortType(row.type), desc: row.description, elapsed, stop }, cols)
       const tokens = row.tokensIn + row.tokensOut > 0 ? `${formatTokens(row.tokensIn)}↑ ${formatTokens(row.tokensOut)}↓` : ''
       const detail = [row.tool ? `▸ ${row.tool}` : '', shortModel(row.model), `${row.toolCount} tools`, tokens].filter(Boolean).join(' · ')
       return (

@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { addAgent, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, splitSections, startTool, syncStatus, truncateTo } from './model'
+import { addAgent, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
 
 const base = () => addAgent([], { id: 'a1', type: 'Explore', description: 'find x', startedAt: 1_000, model: 'haiku' })
 
@@ -101,4 +101,10 @@ test('첫 줄은 폭 안에 들어가게 설명부터, 그다음 종류를 자�
   const narrow = fitHead(spec, 16)
   expect(narrow.desc).toBe('')
   expect(2 + displayWidth(narrow.type) + 1 + 5 + 2).toBeLessThanOrEqual(16)
+})
+
+test('종류 이름은 플러그인 접두사를 뗀다', async () => {
+  expect(shortType('subagents:runner')).toBe('runner')
+  expect(shortType('codex:codex-rescue')).toBe('codex-rescue')
+  expect(shortType('Explore')).toBe('Explore')
 })
