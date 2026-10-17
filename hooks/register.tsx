@@ -174,14 +174,17 @@ export const register: Register = (on, options) => {
     )
 
     const pressStop = async (row: AgentRow) => {
-      const at = await $.clock.now()
+      // Decide and record synchronously, with the time this drawing was made: an await before
+      // arming let a fast second press also see "not armed" and only arm again.
       const expiry = armed.get(row.id)
-      if (expiry === undefined || expiry < at) {
-        armed.set(row.id, at + STOP_ARM_MS)
-        await update($, tick, () => at)
+      if (expiry === undefined || expiry < now) {
+        armed.set(row.id, now + STOP_ARM_MS)
+        await trace($, 'press', { id: row.id, step: 'arm' })
+        await update($, tick, () => now + 1)
         return
       }
       armed.delete(row.id)
+      await trace($, 'press', { id: row.id, step: 'stop' })
       const ran = await $.tool.call({
         tool: 'TaskStop',
         task_id: row.id,
