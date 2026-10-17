@@ -95,6 +95,17 @@ export const register: Register = (on, options) => {
     return result
   }).catch(($, e, next) => next(e)) // a display bug must never block a spawn
 
+  // The effort a subagent really runs on is in its model requests: it fills in what the definition file left out.
+  on('turn.step', async function* ($, e, next) {
+    const effort = e.agentId === undefined || e.effort === undefined ? undefined : String(e.effort)
+    if (e.agentId !== undefined && effort !== undefined) {
+      const id = e.agentId
+      const row = (await read($, agents)).find(r => r.id === id)
+      if (row !== undefined && row.effort !== effort) await update($, agents, rows => setEffort(rows, id, effort))
+    }
+    return yield* next(e)
+  })
+
   on('tool.call', async ($, e, next) => {
     const id = e.agentId
     if (id !== undefined) {

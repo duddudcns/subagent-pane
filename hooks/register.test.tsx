@@ -297,3 +297,21 @@ test('실행 중인 행의 ■ 는 두 번 눌러야 TaskStop을 부른다', asy
   await ui.press({ key: 'stop-ag2' })
   expect(stops).toEqual(['ag2'])
 })
+
+test('정의 파일에 effort 가 없어도 모델 요청의 effort 가 둘째 줄에 붙는다', async ($, on) => {
+  mock.clock(on)
+  on('ui.open', async () => ({ value: { isPlaced: true } }))
+  on('agent.spawn', async () => ({ model: 'claude-sonnet-5-5', agentId: 'ag1' }))
+  on('turn.step', async function* () {
+    return { turnId: 't1', index: 0, answer: '', toolUses: [] } as never
+  })
+  const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'Pane', requestId: 'subagents', props: PANE_PROPS })
+  await $.agent.spawn({
+    tool_use_id: 'tu1', prompt: 'p', description: 'review it', subagentType: 'general-purpose',
+    provider: { plugin: 'engine', tier: 'core' }, parentModel: 'claude-opus-5-5', background: true, fork: false,
+  })
+  const shown = async () => (await ui.findAll({ type: 'Text' })).map(t => t.text).join('\n')
+  expect(await shown()).not.toContain('sonnet/')
+  for await (const _ of $.turn.step({ turnId: 't1', index: 0, model: 'claude-sonnet-5-5', effort: 'high', messageCount: 1, agentId: 'ag1' })) void _
+  expect(await shown()).toContain('sonnet/high')
+})
