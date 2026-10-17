@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { AgentRow } from '../types'
 import { resolveColor } from './colors'
 import { startTrace, trace } from './trace'
-import { addAgent, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
+import { addAgent, addShell, backgroundTaskIdOf, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
 
 const PANE = 'subagents'
 const TITLE = 'Subagents'
@@ -95,14 +95,43 @@ export const register: Register = on => {
 
   on('tool.call', async ($, e, next) => {
     const id = e.agentId
-    if (id === undefined) return next(e)
-    await update($, agents, rows => startTool(rows, id, e.tool))
-    await trace($, 'tool', { id, tool: e.tool })
-    try {
-      return await next(e)
-    } finally {
-      await update($, agents, rows => endTool(rows, id, e.tool))
+    if (id !== undefined) {
+      await update($, agents, rows => startTool(rows, id, e.tool))
+      await trace($, 'tool', { id, tool: e.tool })
     }
+    try {
+      const ran = await next(e)
+      // A backgrounded shell keeps running after the call returns: give it a row of its own.
+      if ((e.tool === 'Bash' || e.tool === 'PowerShell') && e.run_in_background) {
+        const taskId = backgroundTaskIdOf(ran)
+        if (taskId !== undefined) {
+          const startedAt = await $.clock.now()
+          const shell = e.tool === 'Bash' ? 'bash' : 'powershell'
+          await update($, agents, rows =>
+            addShell(rows, { id: taskId, shell, command: e.command, description: e.description, startedAt, parentId: id }),
+          )
+          await trace($, 'shell', { id: taskId, shell, parent: id })
+        }
+      }
+      return ran
+    } finally {
+      if (id !== undefined) await update($, agents, rows => endTool(rows, id, e.tool))
+    }
+  }).catch(($, e, next) => next(e))
+
+  // The engine appends a notification row when a background task ends: that is a shell's end.
+  on('session.append', async ($, e, next) => {
+    const ran = await next(e)
+    if ('kind' in e.origin && e.origin.kind === 'task-notification') {
+      const text = e.message.content.map(block => (block.type === 'text' ? block.text : '')).join('\n')
+      const note = parseNotification(text)
+      if (note !== undefined) {
+        const now = await $.clock.now()
+        await update($, agents, rows => finishTask(rows, note.id, note.status ?? 'completed', now))
+        await trace($, 'notification', { id: note.id, status: note.status })
+      }
+    }
+    return ran
   }).catch(($, e, next) => next(e))
 
   on('turn.complete', async ($, e, next) => {
@@ -167,7 +196,9 @@ export const register: Register = on => {
       const desc = canStop && isArmed ? 'press ■ again to stop' : row.description
       const head = fitHead({ indent, type: shortType(row.type), desc, elapsed }, cols)
       const tokens = row.tokensIn + row.tokensOut > 0 ? `${formatTokens(row.tokensIn)}↑ ${formatTokens(row.tokensOut)}↓` : ''
-      const detail = [row.tool ? `▸ ${row.tool}` : '', shortModel(row.model), `${row.toolCount} tools`, tokens].filter(Boolean).join(' · ')
+      const detail = row.kind === 'shell'
+        ? `$ ${(row.command ?? '').replace(/\s+/g, ' ')}`
+        : [row.tool ? `▸ ${row.tool}` : '', shortModel(row.model), `${row.toolCount} tools`, tokens].filter(Boolean).join(' · ')
       return (
         <Box key={row.id} flexDirection="column">
           <Box flexDirection="row">

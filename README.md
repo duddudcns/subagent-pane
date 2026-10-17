@@ -3,6 +3,7 @@
 Claude Code mod. 사이드 패널에 서브에이전트를 실시간으로 보여 준다.
 
 - 에이전트마다 두 줄: 상태 아이콘, 종류, 설명, 경과 시간 / 지금 쓰는 도구, 모델, 도구 횟수, 토큰(입력↑ 출력↓)
+- 백그라운드 Bash/PowerShell(`run_in_background`)도 `bash`/`powershell` 행으로 보인다. 둘째 줄은 `$ 명령`. 끝은 엔진의 작업 알림(`task-notification`)으로 잡으므로, 알림이 늦게 오면 경과 시간도 그만큼 길게 찍힌다
 - 종류 이름은 에이전트 정의 파일의 `color:` 색으로 칠한다(API가 색을 주지 않아 `~/.claude/plugins/installed_plugins.json` → `agents/<이름>.md` 를 직접 읽음, 내장 에이전트는 색 없음)
 - 종류 이름을 누르면 그 에이전트의 대화 기록으로 전환, `main` 으로 복귀
 - `■` 를 5초 안에 두 번 누르면 `TaskStop` 으로 중지

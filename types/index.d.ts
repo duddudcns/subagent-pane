@@ -8,6 +8,9 @@ export type AgentRow = {
   model?: string
   parentId?: string
   color?: string
+  // 'shell' for a background Bash/PowerShell task; absent for a subagent.
+  kind?: 'shell'
+  command?: string
   tool?: string
   toolCount: number
   tokensIn: number

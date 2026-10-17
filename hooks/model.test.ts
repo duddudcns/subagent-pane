@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { addAgent, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, MIN_GAP, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
+import { addAgent, addShell, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, MIN_GAP, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
 
 const base = () => addAgent([], { id: 'a1', type: 'Explore', description: 'find x', startedAt: 1_000, model: 'haiku' })
 
@@ -125,4 +125,33 @@ test('종류 이름은 플러그인 접두사를 뗀다', async () => {
   expect(shortType('subagents:runner')).toBe('runner')
   expect(shortType('codex:codex-rescue')).toBe('codex-rescue')
   expect(shortType('Explore')).toBe('Explore')
+})
+
+test('백그라운드 셸은 shell 행으로 추가된다: 이름은 bash, 설명이 없으면 명령', async () => {
+  const list = addShell([], { id: 'b1', shell: 'bash', command: 'npm test', startedAt: 5 })
+  expect(list[0]).toMatchObject({ id: 'b1', kind: 'shell', type: 'bash', description: 'npm test', command: 'npm test', status: 'running' })
+  const named = addShell([], { id: 'b2', shell: 'powershell', command: 'x', description: 'run tests', startedAt: 5, parentId: 'a1' })
+  expect(named[0]).toMatchObject({ type: 'powershell', description: 'run tests', parentId: 'a1' })
+})
+
+test('작업 알림은 상태 단어 그대로, 모르는 단어는 completed로 끝낸다', async () => {
+  const list = addShell([], { id: 'b1', shell: 'bash', command: 'x', startedAt: 5 })
+  expect(finishTask(list, 'b1', 'failed', 9)[0]).toMatchObject({ status: 'failed', endedAt: 9 })
+  expect(finishTask(list, 'b1', 'weird', 9)[0]?.status).toBe('completed')
+  // A row already ended keeps its first end time.
+  const done = finishTask(list, 'b1', 'completed', 9)
+  expect(finishTask(done, 'b1', 'completed', 20)[0]?.endedAt).toBe(9)
+})
+
+test('알림 본문에서 task-id와 status를 읽는다', async () => {
+  const text = [
+    '<task-notification>',
+    '<task-id>bk3x9</task-id>',
+    '<status>completed</status>',
+    '<summary>Background command finished</summary>',
+    '</task-notification>',
+  ].join('\n')
+  expect(parseNotification(text)).toEqual({ id: 'bk3x9', status: 'completed' })
+  expect(parseNotification('<task-id>z</task-id>')).toEqual({ id: 'z', status: undefined })
+  expect(parseNotification('hello')).toBeUndefined()
 })

@@ -80,6 +80,35 @@ test('Finished 묶음은 빈 줄과 구분선으로 실행 중 묶음과 떨어�
   expect(displayWidth(bar?.text ?? '')).toBeLessThanOrEqual(cols - 1)
 })
 
+test('백그라운드 Bash는 행이 생기고, 작업 알림이 오면 끝난다', async ($, on) => {
+  mock.clock(on)
+  on('tool.call', async () => ({ result: { stdout: '', stderr: '', interrupted: false, backgroundTaskId: 'bsh1' } }))
+  const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'Pane', requestId: 'subagents', props: PANE_PROPS })
+  await $.tool.call({ tool: 'Bash', command: 'npm run build', description: 'build it', run_in_background: true })
+  const shown = async () => (await ui.findAll({ type: 'Text' })).map(t => t.text).join('\n')
+  expect(await shown()).toContain('bash')
+  expect(await shown()).toContain('build it')
+  expect(await shown()).toContain('$ npm run build')
+  expect(await shown()).toContain('1 running')
+
+  await $.session.append({
+    message: { type: 'user', role: 'user', content: [{ type: 'text', text: '<task-notification>\n<task-id>bsh1</task-id>\n<status>completed</status>\n</task-notification>' }] },
+    door: 'delivery',
+    origin: { kind: 'task-notification' },
+    uuid: 'u1',
+  } as Parameters<typeof $.session.append>[0])
+  expect(await shown()).toContain('idle')
+  expect(await ui.find({ type: 'Button', text: 'Finished · 1' })).toBeDefined()
+})
+
+test('포그라운드 Bash는 행을 만들지 않는다', async ($, on) => {
+  mock.clock(on)
+  on('tool.call', async () => ({ result: { stdout: 'ok', stderr: '', interrupted: false } }))
+  const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'Pane', requestId: 'subagents', props: PANE_PROPS })
+  await $.tool.call({ tool: 'Bash', command: 'ls' })
+  expect(await ui.find({ type: 'Text', text: 'No subagents yet.' })).toBeDefined()
+})
+
 test('좁은 패널에서도 첫 줄이 폭을 넘지 않는다 (한글 설명 포함)', async ($, on) => {
   mock.clock(on)
   on('ui.open', async () => ({ value: { isPlaced: true } }))

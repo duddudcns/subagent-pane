@@ -41,6 +41,49 @@ export const addAgent = (list: AgentRow[], spawned: Spawned): AgentRow[] => {
   return trim([...list, row])
 }
 
+type ShellStart = { id: string; shell: 'bash' | 'powershell'; command: string; description?: string; startedAt: number; parentId?: string }
+
+export const addShell = (list: AgentRow[], shell: ShellStart): AgentRow[] => {
+  if (list.some(row => row.id === shell.id)) return list
+  const row: AgentRow = {
+    id: shell.id,
+    kind: 'shell',
+    type: shell.shell,
+    description: shell.description || shell.command,
+    command: shell.command,
+    status: 'running',
+    startedAt: shell.startedAt,
+    parentId: shell.parentId,
+    toolCount: 0,
+    tokensIn: 0,
+    tokensOut: 0,
+  }
+  return trim([...list, row])
+}
+
+const ENDED = new Set(['completed', 'failed', 'killed'])
+
+// A task notification ends the row once; a repeat keeps the first end time.
+export const finishTask = (list: AgentRow[], id: string, status: string, now: number): AgentRow[] =>
+  patch(list, id, row => ({
+    ...row,
+    status: ENDED.has(status) ? status : 'completed',
+    endedAt: row.endedAt ?? now,
+    tool: undefined,
+  }))
+
+// A backgrounded Bash/PowerShell call answers with the task id it runs under.
+export const backgroundTaskIdOf = (ran: unknown): string | undefined => {
+  const result = (ran as { result?: { backgroundTaskId?: unknown } } | undefined)?.result
+  return typeof result?.backgroundTaskId === 'string' ? result.backgroundTaskId : undefined
+}
+
+export const parseNotification = (text: string): { id: string; status?: string } | undefined => {
+  const id = text.match(/<task-id>([^<]+)<\/task-id>/)?.[1]?.trim()
+  if (!id) return undefined
+  return { id, status: text.match(/<status>([^<]+)<\/status>/)?.[1]?.trim() }
+}
+
 export const setColor = (list: AgentRow[], id: string, color: string): AgentRow[] =>
   patch(list, id, row => ({ ...row, color }))
 
