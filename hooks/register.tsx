@@ -15,15 +15,9 @@ const agents = atom({ plugin: 'subagent-pane', key: 'agents' } as const, [])
 const tick = atom({ plugin: 'subagent-pane', key: 'tick' } as const, 0)
 const showFinished = atom({ plugin: 'subagent-pane', key: 'showFinished' } as const, false)
 
-const ICON: Record<string, [string, string | undefined]> = {
-  pending: ['◌', 'yellow'],
-  running: ['●', 'yellow'],
-  waiting: ['◌', 'yellow'],
-  idle: ['◌', undefined],
-  completed: ['✓', 'green'],
-  failed: ['✗', 'red'],
-  killed: ['■', undefined],
-}
+// No status icon: the elapsed time's colour is the state (live yellow, done green,
+// failed red, killed dim).
+const STATUS_COLOR: Record<string, string> = { completed: 'green', failed: 'red' }
 
 // Module variables reset on every reload; the rows live in $.state and survive.
 let opened = false
@@ -189,7 +183,6 @@ export const register: Register = (on, options) => {
 
     // Exactly two lines per agent: every text is cut to the pane width here, never wrapped.
     const agentRow = (row: AgentRow) => {
-      const [icon, color] = ICON[row.status] ?? ['?', undefined]
       const elapsed = formatElapsed((row.endedAt ?? now) - row.startedAt)
       const indent = row.parentId ? '  ' : ''
       const expiry = armed.get(row.id)
@@ -206,14 +199,14 @@ export const register: Register = (on, options) => {
       return (
         <Box key={row.id} flexDirection="column">
           <Box flexDirection="row">
-            <Text color={color}>{indent}{icon} </Text>
+            {indent && <Text>{indent}</Text>}
             <Button key={`view-${row.id}`} plain onPress={() => void $.ui.view({ agentId: row.id })}>
               <Text bold={row.id === viewed} color={row.color}>{head.type}</Text>
             </Button>
             <Text color={canStop && isArmed ? 'red' : undefined} wrap="truncate">
               {head.desc ? ` ${head.desc}` : ''}
             </Text>
-            <Text color={canStop ? 'yellow' : color} dimColor={row.status === 'killed'}>{' '.repeat(head.gap)}{elapsed}</Text>
+            <Text color={canStop ? 'yellow' : STATUS_COLOR[row.status]} dimColor={row.status === 'killed'}>{' '.repeat(head.gap)}{elapsed}</Text>
             <Text> </Text>
             {canStop ? (
               <Button key={`stop-${row.id}`} plain dimColor={!isArmed} onPress={() => void pressStop(row)}>

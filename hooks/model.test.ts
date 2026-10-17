@@ -104,9 +104,9 @@ test('설명과 경과 시간 사이는 최소 3칸 띄운다', async () => {
 
 test('첫 줄은 폭을 꽉 채우고, 경과 시간은 오른쪽 끝(■ 자리 2칸 앞)에 붙는다', async () => {
   const spec = { indent: '', type: 'general-purpose', desc: '설정 파일 찾기', elapsed: '1m02s' }
-  // icon(1)+space(1)+type+[space+desc]+gap+elapsed+stop slot(2)
+  // type+[space+desc]+gap+elapsed+stop slot(2); no status icon
   const line = (h: { type: string; desc: string; gap: number }) =>
-    2 + displayWidth(h.type) + (h.desc ? 1 + displayWidth(h.desc) : 0) + h.gap + 5 + 2
+    displayWidth(h.type) + (h.desc ? 1 + displayWidth(h.desc) : 0) + h.gap + 5 + 2
   const wide = fitHead(spec, 80)
   expect(wide.type).toBe('general-purpose')
   expect(wide.desc).toBe('설정 파일 찾기')

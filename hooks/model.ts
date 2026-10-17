@@ -164,10 +164,10 @@ export const STOP_SLOT = 2
 // so a cut description never reads as running into the time.
 export const MIN_GAP = 3
 
-// The first row line is: indent, icon + space, type, [space + desc], gap (>= MIN_GAP), elapsed, stop slot.
+// The first row line is: indent, type, [space + desc], gap (>= MIN_GAP), elapsed, stop slot.
 // It fills exactly `cols` so an agent stays two lines: the description gives way first, then the type.
 export const fitHead = (head: Head, cols: number): { type: string; desc: string; gap: number } => {
-  const fixed = displayWidth(head.indent) + 2 + displayWidth(head.type) + MIN_GAP + displayWidth(head.elapsed) + STOP_SLOT
+  const fixed = displayWidth(head.indent) + displayWidth(head.type) + MIN_GAP + displayWidth(head.elapsed) + STOP_SLOT
   if (fixed > cols) {
     return { type: truncateTo(head.type, displayWidth(head.type) - (fixed - cols)), desc: '', gap: MIN_GAP }
   }

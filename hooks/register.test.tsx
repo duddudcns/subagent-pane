@@ -48,7 +48,9 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect(await shown()).not.toContain('Explore')
     await ui.press({ key: 'finished' })
     const texts = await shown()
-    expect(texts).toContain('✓')
+    // No status icon: the elapsed time's colour carries the state.
+    expect(texts).not.toContain('✓')
+    expect(texts).not.toContain('●')
     // A finished row's elapsed time takes its status colour.
     expect((await ui.findAll({ type: 'Text' })).find(t => /^\s+\d+s$/.test(t.text))?.props.color).toBe('green')
     expect(texts).toContain('Explore')
