@@ -174,12 +174,32 @@ test('Finished 묶음은 패널 맨 아래에 붙고, 남는 높이는 빈 공�
   await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't', agentId: 'p2', reason: 'answer' })
   // header 1 + live 2 above; the Finished area keeps a fixed 40% (min 6) = 8 lines; the spacer takes the rest.
   const heightOf = async (key: string) => (await ui.findAll({ type: 'Box' })).find(b => b.key === key)?.props.height
-  expect(await heightOf('finished-area')).toBe(8)
+  const minOf = async (key: string) => (await ui.findAll({ type: 'Box' })).find(b => b.key === key)?.props.minHeight
+  expect(await minOf('finished-area')).toBe(8)
   expect(await heightOf('spacer')).toBe(rows - 3 - 8)
   // Opening and closing the list never moves the Finished bar.
   await ui.press({ key: 'finished' })
   expect(await heightOf('spacer')).toBe(rows - 3 - 8)
-  expect(await heightOf('finished-area')).toBe(8)
+  expect(await minOf('finished-area')).toBe(8)
+})
+
+test('펼친 Finished 목록은 자르지 않는다: 넘치면 패널 스크롤로 본다', async ($, on) => {
+  mock.clock(on)
+  on('ui.open', async () => ({ value: { isPlaced: true } }))
+  let n = 0
+  on('agent.spawn', async () => ({ model: 'claude-haiku-5-5', agentId: `m${++n}` }))
+  on('turn.complete', async (_$, e) => ({ text: e.answer }))
+  const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'Pane', requestId: 'subagents', props: { ...PANE_PROPS, scroll: { offset: 0, bodyRows: 12 } } })
+  for (let i = 1; i <= 8; i++) {
+    await $.agent.spawn({
+      tool_use_id: `m${i}`, prompt: 'x', description: `job ${i}`, subagentType: 'Explore',
+      provider: { plugin: 'engine', tier: 'core' }, parentModel: 'claude-opus-5-5', background: true, fork: false,
+    })
+    await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: `t${i}`, agentId: `m${i}`, reason: 'answer' })
+  }
+  await ui.press({ key: 'finished' })
+  const texts = (await ui.findAll({ type: 'Text' })).map(t => t.text).join('\n')
+  for (let i = 1; i <= 8; i++) expect(texts).toContain(`job ${i}`)
 })
 
 test('좁은 패널에서도 첫 줄이 폭을 넘지 않는다 (한글 설명 포함)', async ($, on) => {
