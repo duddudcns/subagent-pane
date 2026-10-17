@@ -40,7 +40,10 @@ async function togglePane($: EngineInterface) {
   return { text: '서브에이전트 패널을 열었습니다.' }
 }
 
-export const register: Register = on => {
+export const register: Register = (on, options) => {
+  // Both off by default: the detail line names the current tool and the model.
+  const showTokens = options.showTokens === true
+  const showToolCount = options.showToolCount === true
   // Stop takes two presses: the first arms it for STOP_ARM_MS.
   const armed = new Map<string, number>()
 
@@ -195,10 +198,11 @@ export const register: Register = on => {
       // Armed, the description gives its place to the confirmation so the line keeps its width.
       const desc = canStop && isArmed ? 'press ■ again to stop' : row.description
       const head = fitHead({ indent, type: shortType(row.type), desc, elapsed }, cols)
-      const tokens = row.tokensIn + row.tokensOut > 0 ? `${formatTokens(row.tokensIn)}↑ ${formatTokens(row.tokensOut)}↓` : ''
+      const tokens = showTokens && row.tokensIn + row.tokensOut > 0 ? `${formatTokens(row.tokensIn)}↑ ${formatTokens(row.tokensOut)}↓` : ''
+      const toolCount = showToolCount ? `${row.toolCount} tools` : ''
       const detail = row.kind === 'shell'
         ? `$ ${(row.command ?? '').replace(/\s+/g, ' ')}`
-        : [row.tool ? `▸ ${row.tool}` : '', shortModel(row.model), `${row.toolCount} tools`, tokens].filter(Boolean).join(' · ')
+        : [row.tool ? `▸ ${row.tool}` : '', shortModel(row.model), toolCount, tokens].filter(Boolean).join(' · ')
       return (
         <Box key={row.id} flexDirection="column">
           <Box flexDirection="row">

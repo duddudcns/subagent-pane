@@ -53,8 +53,10 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect((await ui.findAll({ type: 'Text' })).find(t => /^\s+\d+s$/.test(t.text))?.props.color).toBe('green')
     expect(texts).toContain('Explore')
     expect(texts).toContain('find the config')
-    expect(texts).toContain('1 tools')
-    expect(texts).toContain('1.1k↑ 2.0k↓')
+    // The detail line names the model alone: no tool count, no tokens.
+    expect(texts).toContain('haiku')
+    expect(texts).not.toContain('tools')
+    expect(texts).not.toContain('↑')
     expect(texts).not.toContain('▸ Grep')
     // Finished rows offer no stop button, only the clear control.
     expect(await ui.find({ key: 'stop-ag1' })).toBeUndefined()
@@ -129,7 +131,7 @@ test('좁은 패널에서도 첫 줄이 폭을 넘지 않는다 (한글 설명 �
   const head = rowsDrawn.find(b => b.text.includes('general'))
   expect(head).toBeDefined()
   expect(displayWidth(head?.text ?? '')).toBeLessThanOrEqual(cols - 1)
-  const detail = (await ui.findAll({ type: 'Text' })).find(t => t.text.includes('tools'))
+  const detail = (await ui.findAll({ type: 'Text' })).find(t => t.text.includes('haiku'))
   expect(displayWidth(detail?.text ?? '')).toBeLessThanOrEqual(cols - 1)
 })
 
@@ -156,6 +158,25 @@ test('/subagent-pane 은 열려 있으면 닫고, 닫혀 있으면 연다', asyn
   expect(isUp).toBe(true)
   await $.command.run({ command: 'sap', args: '' } as Parameters<typeof $.command.run>[0])
   expect(isUp).toBe(false)
+})
+
+test('옵션을 켜면 도구 횟수와 토큰이 둘째 줄에 나온다', { options: { showTokens: true, showToolCount: true } }, async ($, on) => {
+  mock.clock(on)
+  on('ui.open', async () => ({ value: { isPlaced: true } }))
+  on('agent.spawn', async () => ({ model: 'claude-haiku-5-5', agentId: 'op1' }))
+  on('tool.call', async () => ({ result: 'ok' }))
+  on('turn.complete', async (_$, e) => ({ text: e.answer }))
+  const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'Pane', requestId: 'subagents', props: PANE_PROPS })
+  await $.agent.spawn({
+    tool_use_id: 'op', prompt: 'x', description: 'opt', subagentType: 'Explore',
+    provider: { plugin: 'engine', tier: 'core' }, parentModel: 'claude-opus-5-5', background: true, fork: false,
+  })
+  await $.tool.call({ tool: 'Grep', pattern: 'x', agentId: 'op1' } as Parameters<typeof $.tool.call>[0])
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't', agentId: 'op1', reason: 'answer', usage: USAGE })
+  await ui.press({ key: 'finished' })
+  const texts = (await ui.findAll({ type: 'Text' })).map(t => t.text).join('\n')
+  expect(texts).toContain('1 tools')
+  expect(texts).toContain('1.1k↑ 2.0k↓')
 })
 
 test('메인 루프의 도구 호출은 행을 만들지 않는다', async ($, on) => {
