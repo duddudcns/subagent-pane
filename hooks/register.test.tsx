@@ -22,8 +22,10 @@ for (const surface of ['terminal', 'desktop'] as const) {
     on('turn.complete', async (_$, e) => ({ text: e.answer }))
 
     let midRun = ''
+    let midRunTimeColor: unknown
     on('tool.call', async () => {
       midRun = await shown()
+      midRunTimeColor = (await ui.findAll({ type: 'Text' })).find(t => /^\s+\d+s$/.test(t.text))?.props.color
       return { result: 'ok' }
     })
     const ui = await $.ui.mount({ plugin: PLUGIN, surface, component: 'Pane', requestId: 'subagents', props: PANE_PROPS })
@@ -36,6 +38,8 @@ for (const surface of ['terminal', 'desktop'] as const) {
     await $.tool.call({ tool: 'Grep', pattern: 'x', agentId: 'ag1' } as Parameters<typeof $.tool.call>[0])
     expect(midRun).toContain('▸ Grep')
     expect(midRun).toContain('1 running')
+    // A running row's elapsed time is drawn in the running colour.
+    expect(midRunTimeColor).toBe('yellow')
 
     await $.turn.complete({ answer: 'done', durationMs: 5, isAborted: false, turnId: 't1', agentId: 'ag1', reason: 'answer', usage: USAGE })
 
