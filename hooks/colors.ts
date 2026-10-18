@@ -1,5 +1,3 @@
-import type { EngineInterface } from 'claude-code'
-
 // The mod API gives no agent colour, so it is read from the agent's definition file
 // (`color:` in its frontmatter), the same field the Claude Code UI draws from.
 

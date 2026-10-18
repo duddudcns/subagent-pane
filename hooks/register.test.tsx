@@ -25,7 +25,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
     let midRunTimeColor: unknown
     on('tool.call', async () => {
       midRun = await shown()
-      midRunTimeColor = (await ui.findAll({ type: 'Text' })).find(t => /^\s*\d+s$/.test(t.text))?.props.color
+      midRunTimeColor = (await ui.findAll({ type: 'Text' })).find(t => (surface === 'terminal' ? /^\s+\d+s$/ : /^\s*\d+s$/).test(t.text))?.props.color
       return { result: 'ok' }
     })
     const ui = await $.ui.mount({ plugin: PLUGIN, surface, component: 'Pane', requestId: 'subagents', props: PANE_PROPS })
@@ -52,7 +52,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect(texts).not.toContain('✓')
     expect(texts).not.toContain('●')
     // A finished row's elapsed time takes its status colour.
-    expect((await ui.findAll({ type: 'Text' })).find(t => /^\s*\d+s$/.test(t.text))?.props.color).toBe('green')
+    expect((await ui.findAll({ type: 'Text' })).find(t => (surface === 'terminal' ? /^\s+\d+s$/ : /^\s*\d+s$/).test(t.text))?.props.color).toBe('green')
     expect(texts).toContain('Explore')
     expect(texts).toContain('find the config')
     // The detail line names the model alone: no tool count, no tokens.

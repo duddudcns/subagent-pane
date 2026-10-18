@@ -11,6 +11,8 @@ const PANE = 'subagents'
 const TITLE = 'Subagents'
 const TICK_MS = 1000
 const STOP_ARM_MS = 5000
+// The desktop's rule: longer than any pane, its box clips the rest.
+const RULE_LENGTH = 400
 
 const agents = atom({ plugin: 'subagent-pane', key: 'agents' } as const, [])
 const tick = atom({ plugin: 'subagent-pane', key: 'tick' } as const, 0)
@@ -357,7 +359,7 @@ export const register: Register = (on, options) => {
             : (
               // One row high and clipped: the overlong rule wraps out of sight instead of onto a second line.
               <Box flexGrow={1} flexShrink={1} height={1} overflow="hidden" marginLeft={1}>
-                <Text dimColor>{'─'.repeat(cols * 2)}</Text>
+                <Text dimColor>{'─'.repeat(RULE_LENGTH)}</Text>
               </Box>
             )}
         </Box>
