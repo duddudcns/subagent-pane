@@ -25,7 +25,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
     let midRunTimeColor: unknown
     on('tool.call', async () => {
       midRun = await shown()
-      midRunTimeColor = (await ui.findAll({ type: 'Text' })).find(t => /^\s+\d+s$/.test(t.text))?.props.color
+      midRunTimeColor = (await ui.findAll({ type: 'Text' })).find(t => /^\s*\d+s$/.test(t.text))?.props.color
       return { result: 'ok' }
     })
     const ui = await $.ui.mount({ plugin: PLUGIN, surface, component: 'Pane', requestId: 'subagents', props: PANE_PROPS })
@@ -52,7 +52,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect(texts).not.toContain('✓')
     expect(texts).not.toContain('●')
     // A finished row's elapsed time takes its status colour.
-    expect((await ui.findAll({ type: 'Text' })).find(t => /^\s+\d+s$/.test(t.text))?.props.color).toBe('green')
+    expect((await ui.findAll({ type: 'Text' })).find(t => /^\s*\d+s$/.test(t.text))?.props.color).toBe('green')
     expect(texts).toContain('Explore')
     expect(texts).toContain('find the config')
     // The detail line names the model alone: no tool count, no tokens.
@@ -314,4 +314,58 @@ test('정의 파일에 effort 가 없어도 모델 요청의 effort 가 둘째 �
   expect(await shown()).not.toContain('sonnet/')
   for await (const _ of $.turn.step({ turnId: 't1', index: 0, model: 'claude-sonnet-5-5', effort: 'high', messageCount: 1, agentId: 'ag1' })) void _
   expect(await shown()).toContain('sonnet/high')
+})
+
+test('데스크탑: 시간·x·구분선을 공백이 아니라 flex로 오른쪽 끝에 붙인다', async ($, on) => {
+  mock.clock(on)
+  on('ui.open', async () => ({ value: { isPlaced: true } }))
+  let next = 0
+  on('agent.spawn', async () => ({ model: 'claude-haiku-5-5', agentId: `d${++next}` }))
+  on('turn.complete', async (_$, e) => ({ text: e.answer }))
+  const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'desktop', component: 'Pane', requestId: 'subagents', props: PANE_PROPS })
+  const spawn = (description: string) => $.agent.spawn({
+    tool_use_id: description, prompt: 'x', description, subagentType: 'Explore',
+    provider: { plugin: 'engine', tier: 'core' }, parentModel: 'claude-opus-5-5', background: true, fork: false,
+  })
+  await spawn('still running')
+  await spawn('already done')
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't', agentId: 'd2', reason: 'answer' })
+  const texts = await ui.findAll({ type: 'Text' })
+  // The time is drawn bare: no padding spaces in front of it.
+  const time = texts.find(t => /^\d+s$/.test(t.text))
+  expect(time).toBeDefined()
+  expect(texts.some(t => /^\s+\d+s$/.test(t.text))).toBe(false)
+  // The description and the detail line grow to fill the row, pushing the time and the x to the edge.
+  const boxes = await ui.findAll({ type: 'Box' })
+  const grows = boxes.filter(b => b.props.flexGrow === 1)
+  expect(grows.some(b => b.text === 'still running')).toBe(true)
+  expect(grows.some(b => b.text.includes('haiku'))).toBe(true)
+  expect(await ui.find({ key: 'stop-d1' })).toBeDefined()
+  // No padded detail line: nothing ends in a run of spaces.
+  expect(texts.some(t => / {3,}$/.test(t.text))).toBe(false)
+  // The rule sits in a one-row clipped box, so it cannot spill onto a second line.
+  const rule = boxes.filter(b => b.text.includes('───')).sort((x, y) => x.text.length - y.text.length)[0]
+  expect(rule?.props.height).toBe(1)
+  expect(rule?.props.overflow).toBe('hidden')
+  expect(rule?.props.flexGrow).toBe(1)
+})
+
+test('데스크탑: 실행 중인 행의 x 도 두 번 눌러야 TaskStop을 부른다', async ($, on) => {
+  mock.clock(on)
+  on('ui.open', async () => ({ value: { isPlaced: true } }))
+  on('agent.spawn', async () => ({ model: 'claude-haiku-5-5', agentId: 'ag3' }))
+  const stops: unknown[] = []
+  on('tool.call', async (_$, e) => {
+    if (e.tool === 'TaskStop') stops.push(e.task_id)
+    return { result: 'ok' }
+  })
+  await $.agent.spawn({
+    tool_use_id: 'tu3', prompt: 'wait', description: 'long wait', subagentType: 'runner',
+    provider: { plugin: 'engine', tier: 'core' }, parentModel: 'claude-opus-5-5', background: true, fork: false,
+  })
+  const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'desktop', component: 'Pane', requestId: 'subagents', props: PANE_PROPS })
+  await ui.press({ key: 'stop-ag3' })
+  expect(stops).toEqual([])
+  await ui.press({ key: 'stop-ag3' })
+  expect(stops).toEqual(['ag3'])
 })

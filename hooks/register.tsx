@@ -219,6 +219,9 @@ export const register: Register = (on, options) => {
     const viewed = e.props?.view?.agentId
     // Rows fill the pane exactly: the time ends at the right edge.
     const cols = Math.max(12, e.props?.bodyColumns ?? 80)
+    // Only the terminal draws one cell per column: padding with spaces lines things up there.
+    // Elsewhere (the desktop's proportional text) flex does the aligning.
+    const isCellGrid = e.surface === 'terminal'
 
     const header = (
       <Box flexDirection="row">
@@ -278,13 +281,45 @@ export const register: Register = (on, options) => {
           ? [modelLabel(row.model, row.effort), row.note].filter(Boolean).join(' · ')
           : `$ ${(row.command ?? '').replace(/\s+/g, ' ')}`
         : [showTool && row.tool ? `▸ ${row.tool}` : '', modelLabel(shortModel(row.model), row.effort), toolCount, tokens].filter(Boolean).join(' · ')
+      const viewButton = (label: string) => (
+        <Button key={`view-${row.id}`} plain onPress={() => void $.ui.view({ agentId: row.id })}>
+          <Text bold={row.id === viewed} color={row.color}>{label}</Text>
+        </Button>
+      )
+      const stopButton = (
+        // Its own keyed Box: hover lights the x only while the pointer is on the x itself.
+        <Box key={`stopbox-${row.id}`}>
+          <Button key={`stop-${row.id}`} plain dimColor={!isArmed} onPress={() => void pressStop(row)}>
+            <Text color={isArmed ? 'red' : undefined} hover={{ color: 'red', dimColor: false }}>x</Text>
+          </Button>
+        </Box>
+      )
+      if (!isCellGrid) {
+        // The growing middle part pushes the time and the x to the right edge; it gives way when the row is narrow.
+        return (
+          <Box key={row.id} flexDirection="column">
+            <Box flexDirection="row" gap={1}>
+              {depth > 0 && <Box paddingLeft={2 * (depth - 1)}><Text dimColor>└</Text></Box>}
+              {viewButton(shortType(row.type))}
+              <Box flexGrow={1} flexShrink={1} overflow="hidden">
+                {desc ? <Text color={canStop && isArmed ? 'red' : undefined} wrap="truncate-end">{desc}</Text> : null}
+              </Box>
+              <Text color={canStop ? 'yellow' : STATUS_COLOR[row.status]} dimColor={row.status === 'killed'}>{elapsed}</Text>
+            </Box>
+            <Box flexDirection="row" gap={1} paddingLeft={2 * depth + 2}>
+              <Box flexGrow={1} flexShrink={1} overflow="hidden">
+                {detail ? <Text dimColor wrap="truncate-end">{detail}</Text> : null}
+              </Box>
+              {canStop && stopButton}
+            </Box>
+          </Box>
+        )
+      }
       return (
         <Box key={row.id} flexDirection="column">
           <Box flexDirection="row">
             {indent && <Text dimColor>{indent}</Text>}
-            <Button key={`view-${row.id}`} plain onPress={() => void $.ui.view({ agentId: row.id })}>
-              <Text bold={row.id === viewed} color={row.color}>{head.type}</Text>
-            </Button>
+            {viewButton(head.type)}
             <Text color={canStop && isArmed ? 'red' : undefined} wrap="truncate">
               {head.desc ? ` ${head.desc}` : ''}
             </Text>
@@ -294,12 +329,7 @@ export const register: Register = (on, options) => {
             // The stop control sits at the end of line two: faint at rest, red while the pointer is on it.
             <Box flexDirection="row">
               <Text dimColor>{padTo(truncateTo(`${tailIndent}  ${detail}`, cols - 2), cols - 2)} </Text>
-              {/* Its own keyed Box: hover lights the x only while the pointer is on the x itself. */}
-              <Box key={`stopbox-${row.id}`}>
-                <Button key={`stop-${row.id}`} plain dimColor={!isArmed} onPress={() => void pressStop(row)}>
-                  <Text color={isArmed ? 'red' : undefined} hover={{ color: 'red', dimColor: false }}>x</Text>
-                </Button>
-              </Box>
+              {stopButton}
             </Box>
           ) : (
             <Text dimColor wrap="truncate">{truncateTo(`${tailIndent}  ${detail}`, cols)}</Text>
@@ -322,7 +352,14 @@ export const register: Register = (on, options) => {
           <Button key="clear" plain dimColor onPress={() => void update($, agents, list => list.filter(row => isLive(row.status)))}>
             clear
           </Button>
-          <Text dimColor> {'─'.repeat(ruleWidth)}</Text>
+          {isCellGrid
+            ? <Text dimColor> {'─'.repeat(ruleWidth)}</Text>
+            : (
+              // One row high and clipped: the overlong rule wraps out of sight instead of onto a second line.
+              <Box flexGrow={1} flexShrink={1} height={1} overflow="hidden" marginLeft={1}>
+                <Text dimColor>{'─'.repeat(cols * 2)}</Text>
+              </Box>
+            )}
         </Box>
       </Box>
     )
