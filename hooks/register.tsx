@@ -2,9 +2,9 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { AgentRow } from '../types'
-import { resolveDefinition } from './colors'
+import { agentFileCandidates, parseColor, parseEffort, toDisplayColor } from './colors'
+import type { Definition } from './colors'
 import { codexCall, drivePath, firstLine, scriptPathOf } from './codex'
-import { startTrace, trace } from './trace'
 import { modelLabel, setEffort, setShellInfo, treePrefix, treeOrder, stopOutcome, padTo, reconcileShells, addAgent, addShell, backgroundTaskIdOf, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
 
 const PANE = 'subagents'
@@ -22,6 +22,44 @@ const STATUS_COLOR: Record<string, string> = { completed: 'green', failed: 'red'
 
 // Module variables reset on every reload; the rows live in $.state and survive.
 let opened = false
+
+// The engine follows $ only into functions of this same file, so every helper that takes $ lives here.
+
+// Development trace: on only while `.debug` exists in the plugin folder.
+// Each event is appended and the last 200 plus the current rows are written to `.debug-dump.json`.
+let isTracing = false
+const events: unknown[] = []
+
+async function startTrace($: EngineInterface): Promise<void> {
+  isTracing = await $.fs.read(`${$.plugin.root}/.debug`).then(() => true, () => false)
+}
+
+async function trace($: EngineInterface, kind: string, data: Record<string, unknown>): Promise<void> {
+  if (!isTracing) return
+  events.push({ at: await $.clock.now(), kind, ...data })
+  const rows = await read($, agents)
+  await $.fs.write(`${$.plugin.root}/.debug-dump.json`, JSON.stringify({ events: events.slice(-200), rows }, null, 1))
+}
+
+// One lookup per agent type per load; built-in types simply find no file.
+const definitions = new Map<string, Definition>()
+
+async function resolveDefinition($: EngineInterface, type: string): Promise<Definition> {
+  const hit = definitions.get(type)
+  if (hit !== undefined) return hit
+  const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME')) ?? ''
+  const configDir = ((await $.env.get('CLAUDE_CONFIG_DIR')) ?? `${home}/.claude`).replace(/\\/g, '/')
+  const installed = await $.fs.read(`${configDir}/plugins/installed_plugins.json`).catch(() => '{}')
+  let found: Definition = {}
+  for (const path of agentFileCandidates(type, configDir, '.', installed)) {
+    const text = await $.fs.read(path).catch(() => undefined)
+    if (text === undefined) continue
+    found = { color: toDisplayColor(parseColor(text)), effort: parseEffort(text) }
+    break
+  }
+  definitions.set(type, found)
+  return found
+}
 
 // The commands toggle: the engine's pane record survives reloads, the module's does not.
 async function togglePane($: EngineInterface) {

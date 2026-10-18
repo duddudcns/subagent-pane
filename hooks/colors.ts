@@ -49,22 +49,3 @@ export const agentFileCandidates = (type: string, configDir: string, cwd: string
 
 export type Definition = { color?: string; effort?: string }
 
-// One lookup per agent type per load; built-in types simply find no file.
-const cache = new Map<string, Definition>()
-
-export async function resolveDefinition($: EngineInterface, type: string): Promise<Definition> {
-  const hit = cache.get(type)
-  if (hit !== undefined) return hit
-  const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME')) ?? ''
-  const configDir = ((await $.env.get('CLAUDE_CONFIG_DIR')) ?? `${home}/.claude`).replace(/\\/g, '/')
-  const installed = await $.fs.read(`${configDir}/plugins/installed_plugins.json`).catch(() => '{}')
-  let found: Definition = {}
-  for (const path of agentFileCandidates(type, configDir, '.', installed)) {
-    const text = await $.fs.read(path).catch(() => undefined)
-    if (text === undefined) continue
-    found = { color: toDisplayColor(parseColor(text)), effort: parseEffort(text) }
-    break
-  }
-  cache.set(type, found)
-  return found
-}
