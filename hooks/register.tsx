@@ -346,7 +346,8 @@ export const register: Register = (on, options) => {
     const finishedBar = finished.length > 0 && (
       <Box flexDirection="column">
         <Text> </Text>
-        <Box flexDirection="row">
+        {/* Centred: on the desktop the buttons stand taller than the one-row rule, which would hug their top. */}
+        <Box flexDirection="row" alignItems="center">
           <Button key="finished" plain dimColor onPress={() => void update($, showFinished, open => !open)}>
             {finishedLabel}
           </Button>

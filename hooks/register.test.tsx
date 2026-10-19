@@ -348,6 +348,9 @@ test('데스크탑: 시간·x·구분선을 공백이 아니라 flex로 오른�
   expect(rule?.props.height).toBe(1)
   expect(rule?.props.overflow).toBe('hidden')
   expect(rule?.props.flexGrow).toBe(1)
+  // The bar centres its children, so the rule sits at the label's middle, not its top.
+  const bar = boxes.find(b => b.props.flexDirection === 'row' && b.text.includes('Finished') && b.text.includes('───'))
+  expect(bar?.props.alignItems).toBe('center')
 })
 
 test('데스크탑: 실행 중인 행의 x 도 두 번 눌러야 TaskStop을 부른다', async ($, on) => {
