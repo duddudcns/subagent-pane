@@ -360,7 +360,8 @@ export const register: Register = (on, options) => {
             : (
               // One row high and clipped: the overlong rule wraps out of sight instead of onto a second line.
               <Box flexGrow={1} flexShrink={1} height={1} overflow="hidden" marginLeft={1}>
-                <Text dimColor>{'─'.repeat(RULE_LENGTH)}</Text>
+                {/* An em dash, not '─': the desktop font draws the box-drawing line near the top of the row. */}
+                <Text dimColor>{'—'.repeat(RULE_LENGTH)}</Text>
               </Box>
             )}
         </Box>

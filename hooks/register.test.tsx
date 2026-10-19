@@ -344,12 +344,14 @@ test('데스크탑: 시간·x·구분선을 공백이 아니라 flex로 오른�
   // No padded detail line: nothing ends in a run of spaces.
   expect(texts.some(t => / {3,}$/.test(t.text))).toBe(false)
   // The rule sits in a one-row clipped box, so it cannot spill onto a second line.
-  const rule = boxes.filter(b => b.text.includes('───')).sort((x, y) => x.text.length - y.text.length)[0]
+  const rule = boxes.filter(b => b.text.includes('———')).sort((x, y) => x.text.length - y.text.length)[0]
   expect(rule?.props.height).toBe(1)
   expect(rule?.props.overflow).toBe('hidden')
   expect(rule?.props.flexGrow).toBe(1)
+  // The em dash sits at the text's middle, where the box-drawing line sits high in the desktop font.
+  expect(rule?.text.includes('─')).toBe(false)
   // The bar centres its children, so the rule sits at the label's middle, not its top.
-  const bar = boxes.find(b => b.props.flexDirection === 'row' && b.text.includes('Finished') && b.text.includes('───'))
+  const bar = boxes.find(b => b.props.flexDirection === 'row' && b.text.includes('Finished') && b.text.includes('———'))
   expect(bar?.props.alignItems).toBe('center')
 })
 
