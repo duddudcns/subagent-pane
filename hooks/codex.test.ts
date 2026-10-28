@@ -20,6 +20,12 @@ test('run.sh 래퍼는 인자 3,4 를 읽고 없으면 스크립트 기본값을
   expect(codexCall(noArgs, SCRIPT)).toEqual({ model: 'gpt-6-luna', effort: 'medium', promptFile: 'C:/tmp/p x.txt' })
 })
 
+test('기본값이 환경 변수 기본값으로 겹쳐 있으면 안쪽 기본값을 쓴다', async () => {
+  const nested = SCRIPT.replace('${3:-gpt-6-luna}', '${3:-${CODEX_MODEL:-gpt-6-luna}}').replace('${4:-medium}', '${4:-${CODEX_EFFORT:-medium}}')
+  const noArgs = 'bash run.sh /tmp/p.txt /tmp/l.log'
+  expect(codexCall(noArgs, nested)).toEqual({ model: 'gpt-6-luna', effort: 'medium', promptFile: '/tmp/p.txt' })
+})
+
 test('codex 와 무관한 명령은 undefined', async () => {
   expect(codexCall('npm test')).toBeUndefined()
   expect(codexCall('bash build.sh a b', 'echo hi')).toBeUndefined()

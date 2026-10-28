@@ -20,7 +20,9 @@ export const codexCall = (command: string, scriptText?: string): CodexCall | und
   if (script === undefined || scriptText === undefined || !/\bcodex\s+exec\b/.test(scriptText)) return undefined
   // Positional arguments after the script: prompt, log, model, effort.
   const args = tokens(command).slice(tokens(command).indexOf(script) + 1)
-  const dflt = (n: number): string | undefined => scriptText.match(new RegExp(`\\$\\{${n}:-([^}]+)\\}`))?.[1]
+  // `${3:-${CODEX_MODEL:-gpt-6-luna}}`: the env var is not visible here, so its own default is shown.
+  const dflt = (n: number): string | undefined =>
+    scriptText.match(new RegExp(`\\$\\{${n}:-(?:\\$\\{\\w+:-)*([^}$]+)\\}`))?.[1]
   return { model: args[2] ?? dflt(3), effort: args[3] ?? dflt(4), promptFile: args[0] }
 }
 
