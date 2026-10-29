@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { treePrefix, treeOrder, stopOutcome, reconcileShells, addAgent, addShell, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, MIN_GAP, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
+import { treePrefix, treeOrder, stopOutcome, reconcileShells, addAgent, addShell, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, MIN_GAP, setColor, shortType, splitSections, startTool, syncStatus, truncateTo, stripReasonTag } from './model'
 
 const base = () => addAgent([], { id: 'a1', type: 'Explore', description: 'find x', startedAt: 1_000, model: 'haiku' })
 
@@ -185,4 +185,16 @@ test('자식 행 첫 줄은 └ 로 부모에 이어지고, 둘째 줄은 같은
   expect(treePrefix(0)).toEqual({ head: '', tail: '' })
   expect(treePrefix(1)).toEqual({ head: '└ ', tail: '  ' })
   expect(treePrefix(2)).toEqual({ head: '  └ ', tail: '    ' })
+})
+
+test('게이트가 받는 [모델: 이유] 태그만 표시에서 뺀다', async () => {
+  expect(stripReasonTag('[opus: code review needs judgement] review gate')).toBe('review gate')
+  expect(stripReasonTag('[Sonnet: x]  fix bug')).toBe('fix bug')
+  expect(stripReasonTag('[haiku: cheap] read logs')).toBe('[haiku: cheap] read logs')
+  expect(stripReasonTag('[opus: ] empty')).toBe('[opus: ] empty')
+  expect(stripReasonTag('[claude-opus-5-5: x] id')).toBe('[claude-opus-5-5: x] id')
+  expect(stripReasonTag('read logs')).toBe('read logs')
+  expect(stripReasonTag('fix [opus: x] later')).toBe('fix later')
+  expect(stripReasonTag('[note] keep')).toBe('[note] keep')
+  expect(stripReasonTag('[opus: only tag]')).toBe('[opus: only tag]')
 })

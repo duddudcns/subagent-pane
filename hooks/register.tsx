@@ -5,7 +5,7 @@ import type { AgentRow } from '../types'
 import { agentFileCandidates, parseColor, parseEffort, toDisplayColor } from './colors'
 import type { Definition } from './colors'
 import { codexCall, drivePath, firstLine, scriptPathOf } from './codex'
-import { modelLabel, setEffort, setShellInfo, treePrefix, treeOrder, stopOutcome, padTo, reconcileShells, addAgent, addShell, backgroundTaskIdOf, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, setColor, shortType, splitSections, startTool, syncStatus, truncateTo } from './model'
+import { modelLabel, setEffort, setShellInfo, treePrefix, treeOrder, stopOutcome, padTo, reconcileShells, addAgent, addShell, backgroundTaskIdOf, finishTask, parseNotification, displayWidth, endTool, finishTurn, fitHead, formatElapsed, formatTokens, isLive, setColor, shortType, splitSections, startTool, syncStatus, truncateTo, stripReasonTag } from './model'
 
 const PANE = 'subagents'
 const TITLE = 'Subagents'
@@ -274,7 +274,7 @@ export const register: Register = (on, options) => {
       const isArmed = expiry !== undefined && expiry >= now
       const canStop = isLive(row.status)
       // Armed, the description gives its place to the confirmation so the line keeps its width.
-      const desc = canStop && isArmed ? 'press x again to stop' : row.description
+      const desc = canStop && isArmed ? 'press x again to stop' : stripReasonTag(row.description)
       const head = fitHead({ indent, type: shortType(row.type), desc, elapsed }, cols)
       const tokens = showTokens && row.tokensIn + row.tokensOut > 0 ? `${formatTokens(row.tokensIn)}↑ ${formatTokens(row.tokensOut)}↓` : ''
       const toolCount = showToolCount ? `${row.toolCount} tools` : ''

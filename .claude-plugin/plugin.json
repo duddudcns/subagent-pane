@@ -1,6 +1,6 @@
 {
   "name": "subagent-pane",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "사이드 패널에 서브에이전트 상태·경과 시간·모델·effort을 실시간 표시하고 대화 보기·중지",
   "author": {
     "name": "duddudcns"

@@ -205,6 +205,12 @@ export const truncateTo = (text: string, width: number): string => {
 // Pads with spaces to a display width (Hangul counts two).
 export const padTo = (text: string, width: number): string => text + ' '.repeat(Math.max(0, width - displayWidth(text)))
 
+// The subagents gate asks for a "[opus: reason]" tag on opus/sonnet/fable, anywhere in the description, with a
+// non-blank reason. The row already shows the model, so the same tags are hidden. A description that is only
+// the tag is kept, so the row never goes blank.
+const REASON_TAG = /\s*\[(?:opus|sonnet|fable):\s*[^\s\]][^\]]*\]\s*/gi
+export const stripReasonTag = (desc: string): string => desc.replace(REASON_TAG, ' ').trim() || desc
+
 type Head = { indent: string; type: string; desc: string; elapsed: string }
 
 // At least this many blank cells between the description's end and the elapsed time,
